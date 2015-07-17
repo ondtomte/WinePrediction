@@ -147,3 +147,85 @@ Klassificering:
 	Trees / Forests
 
 	SVM
+	
+	
+```{r}
+train$binary.quality <- train$quality >= 6
+validation$binary.quality <- validation$quality >= 6
+test$binary.quality <- test$quality >= 6
+
+baseline.misclass <- length(which(validation$binary.quality == FALSE)) / length(validation$binary.quality)
+
+wine.knn.misclass <- c()
+
+for(i in 1:25){
+wine.knn <- FNN::knn(train = train[,1:11], test = validation[,1:11], k = i, cl = train[,13])
+wine.knn.class <- wine.knn == validation[,13]
+wine.knn.misclass[i] <- 1-(length(which(wine.knn.class))/length(validation[,13]))}
+
+require(MASS)
+
+train.binary <- train[,-12]
+validation.binary <- validation[,-12]
+test.binary <- test[,-12]
+
+# cross val
+
+wine.lda.cv <- lda(binary.quality ~ ., data = train.binary, CV = TRUE)
+wine.qda.cv <- qda(binary.quality ~ ., data = train.binary, CV = TRUE)
+
+cv.misclass.error.lda <- length(which(wine.lda.cv$class != train.binary$binary.quality)) / length(train.binary$binary.quality)
+cv.misclass.error.qda <- length(which(wine.qda.cv$class != train.binary$binary.quality)) / length(train.binary$binary.quality)
+
+# end cross val
+
+wine.lda <- lda(binary.quality ~ ., data = train.binary)
+wine.qda <- qda(binary.quality ~ ., data = train.binary)
+
+qda.validation.mce <- length(which(predict(wine.qda, validation.binary[,-12])$class != validation.binary[,12])) / length(validation.binary[,12])
+
+lda.validation.mce <- length(which(predict(wine.lda, validation.binary[,-12])$class != validation.binary[,12])) / length(validation.binary[,12])
+
+require(e1071)
+
+train.binary$binary.quality <- as.factor(train.binary$binary.quality)
+validation.binary$binary.quality <- as.factor(validation.binary$binary.quality)
+test.binary$binary.quality <- as.factor(test.binary$binary.quality)
+
+valid.mces <- matrix(ncol = 8, nrow = 4)
+
+svm.fct <- function(x){
+
+for (j in c("linear", "polynomial", "radial", "sigmoid")){
+  
+  if (j == "linear"){k <- 1}
+  if (j == "polynomial"){k <- 2}
+  if (j == "radial"){k <- 3}
+  if (j == "sigmoid"){k <- 4}
+  
+#  for (i in c(0.01, 0.3, 3, 5, 10)){
+  for (i in c(0.01, 0.3, 3, 5, 10, 20, 30, 40)){
+    
+    if (i == 0.01){l <- 1}
+    if (i == 0.3){l <- 2}
+    if (i == 3){l <- 3}
+    if (i == 5){l <- 4}
+    if (i == 10){l <- 5}
+    if (i == 20){l <- 6}
+    if (i == 30){l <- 7}
+    if (i == 40){l <- 8}
+    
+    if (x == 0){model <- svm(binary.quality ~ ., data = train.binary, kernel = j, cost = i)}
+    if (x == 1){
+      cw <- c("0" = 1, "1" = length(which(train.binary$binary.quality == 0)) /
+      length(which(binary.train2$quality == 1)))
+      model <- svm(binary.quality ~ ., data = train.binary[-12], kernel = j, cost = i,
+      class.weights = cw)}
+    pred <- predict(model, newdata = validation.binary[,-12])
+    valid.mces[k,l] <- length(which(validation.binary$binary.quality !=
+    pred)) / length(validation$binary.quality)}}
+  
+  return(list(valid.mces))}
+
+
+```	
