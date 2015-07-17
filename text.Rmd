@@ -34,6 +34,7 @@ The data set did not contain any unknown values. We did not search for any outli
 ```{r}
 wine <- cbind(as.data.frame(scale(wine[,-12])),quality=wine[,12])
 library(caTools)
+set.seed(23)
 s <- sample.split(Y = wine$quality,SplitRatio = 0.9)
 test <- wine[s==FALSE,]
 temp <-wine[s==TRUE,]
@@ -115,7 +116,8 @@ require(lars)
 lasso.models <-lars(x = as.matrix(train[,-12]), y = as.vector(train[,12]), type = "lasso")
 plot(lasso.models)
 
-sapply(1:13,function(x){mean((predict(lasso.models,as.matrix(validation[,-12]))$fit[,x]-validation[,12])^2)})
+lasso.mse <- sapply(1:14,function(x){mean((predict(lasso.models,as.matrix(validation[,-12]))$fit[,x]-validation[,12])^2)})
+plot(x=1:14,y=lasso.mse,xlab="Model")
 ```
 
 	konstruera lm / Signifikans i lm
