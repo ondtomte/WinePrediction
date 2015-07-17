@@ -90,7 +90,9 @@ The first model we construct is simply to linearly regress quality on all of the
 
 ```{r}
 lin.model1 <- lm(quality ~ ., data = train)
+summary(lin.model1)
 lin.pred1 <- predict(lin.model1, newdata = validation)
+#MSE
 mean((lin.pred1 - validation[,12])^2)
 ```
 
@@ -102,10 +104,10 @@ The only relationship which seems clear is a slight negative linear tendency, we
 
 ```{r}
 lin.model2 <- lm(quality ~ density, data = train)
-lin.pred2 <- predict(lin.model2, newdata = validation) 
+lin.pred2 <- predict(lin.model2, newdata = validation)
+#MSE
 mean((lin.pred2- validation[,12])^2)
 ```
-
 
 
 ```{r}
