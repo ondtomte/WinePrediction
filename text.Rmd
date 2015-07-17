@@ -1,0 +1,92 @@
+---
+title: "Project"
+author: "Simon Almerström Przybyl & Daniel Öhman"
+date: "17 juli 2015"
+output: html_document
+---
+
+1. INTRO / EXPLAIN DATA SET AND TASK
+
+For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion. Our task was to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
+
+1 - We view the quality of wine as a continuous variable allowed to take any value on the interval [0,10], this view of the problem yields a regression problem.
+
+2 - We define a good wine to be a wine having quality larger than or equal to 6, and a poor wine to be a wine having quality less than 6. This yields a binary classification problem of separating good wine from poor wine.
+
+Regarding the accuracy of the different subtasks:
+
+In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model (this model will be specified shortly).
+
+In the classification subtask, our main interest is to have a high precision rate, intuitively because we seek to minimize the risk of someone intending to buy a good wine but actually getting a poor wine.
+
+
+2. DATA CLEANING
+
+We downloaded the data set from the UCI Machine Learning Repository (link). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of differently colored wine may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
+
+FYLL I !!!!!
+
+The data set did not contain any unknown values. We did not search for any outliers (i.e. observations deviating extremely). The data set was split into training, validation and test sets by doing a random 70-20-10 split ”while preserving relative ratios of different labels of the target variable”. For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
+
+3 & 4. FEATURE IMPORTANCE SCORES / PCA
+
+CORRELATION MATRIX - LISTA
+
+Mutual information criterion!
+
+The correlation matrix shows the linear dependence between all of the variables. If we were to remove some features, entries in the correlation matrix having large absolute value would determine pairs of variables of which one could be removed. However, since we value model accuracy over model simplicity, we choose to not remove any attributes.
+
+We used PCA to find the directions of maximum variance (orthogonal?). The 11th principle component showed a sharp decline in standard deviation, we therefore choose to create a transformation of our original data set where our data is expressed using only the ten first principle components. We will use both the original data set and the PCA transformed data set when constructing models, and then compare these models to each other.
+
+(Target audience / Expert opinions?)
+
+5. MODELS
+
+To get an MSE to compare our models’ performance with, we calculate the validation MSE obtained by simply guessing the mean quality of the training data, we call this MSE our baseline error. We except our other models to perform much better than this baseline model.
+
+Regression:
+
+The first model we construct is simply to linearly regress quality on all of the attributes:
+
+```{r}
+#lin.wine2 <- lm(quality ~ ., data = train2)
+#lin.wine2.mse <- mean((predict(lin.wine2, newdata = valid2[,-12]) - valid2[,12])^2)
+```
+
+The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
+
+PLOT
+
+The only relationship which seems clear is a slight negative linear tendency, we therefore regress quality on density linearly:
+
+```{r}
+#lin.wine2 <- lm(quality ~ density, data = train2)
+#lin.wine2.mse <- mean((predict(lin.wine2, newdata = valid2[,-12]) - valid2[,12])^2)
+```
+
+
+
+```{r}
+#lasso.models <-lars(x = as.matrix(train2[,-12]), y = as.vector(train2[,12]), type = "lasso")
+#plot(lasso.models)
+
+# lasso.predict <- rep(0,13)
+# for (i in 1:13){
+#  lasso.predict[i]<-mean((predict(lasso.models, as.matrix(valid2[,-12]))$fit[,i] - #valid2[,12])^2)}
+```
+
+	konstruera lm / Signifikans i lm
+
+	Lasso / Ridge
+
+	Spline
+
+Klassificering:
+
+	logistisk regression
+
+	QDA / LDA
+
+	Trees / Forests
+
+	SVM
