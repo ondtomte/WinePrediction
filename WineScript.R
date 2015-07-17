@@ -37,6 +37,8 @@ wine2 <- as.data.frame(wine2)
 wine2$quality <- wine$quality
 wine2$red <- wine$red
 
+set.seed(23)
+
 train2 <- wine2[-random,]
 valid2 <- wine2[random[-test.ind],]
 test2 <- wine2[random[test.ind],]
@@ -48,8 +50,8 @@ baseline.error2 <- mean((valid2[,12] - mean(train2$quality))^2)
 #prcomp$x = ny data roterad
 
 PCA <- prcomp(train2[,-12], data = train2)
-pca.train <- princomp(train2[,-12], data = train2)$scores[,1:12]
-pca.valid <- data.frame(princomp(valid2[,-12], data = valid2)$scores[,1:12])
+pca.train <- princomp(train2[,-12], data = train2)$scores[,1:10]
+pca.valid <- data.frame(princomp(valid2[,-12], data = valid2)$scores[,1:10])
 pca.train <- cbind(as.data.frame(pca.train), quality = train2$quality)
 
 pca.lm <- lm(quality ~ ., data = pca.train)
@@ -71,7 +73,7 @@ require(rgl)
 # plot(ridge.models) - verkar inte vara så relevant modell?
 
 lasso.models <-lars(x = as.matrix(train2[,-12]), y = as.vector(train2[,12]), type = "lasso")
-# plot(lasso.models)
+plot(lasso.models)
 
 lasso.predict <- rep(0,13)
 for (i in 1:13){
