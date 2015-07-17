@@ -5,7 +5,7 @@ date: "17 juli 2015"
 output: html_document
 ---
 
-1. INTRO / EXPLAIN DATA SET AND TASK
+#1. INTRO / EXPLAIN DATA SET AND TASK
 
 For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion. Our task was to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
 
@@ -20,19 +20,34 @@ In the regression subtask we are of course seeking to minimize the MSE as far as
 In the classification subtask, our main interest is to have a high precision rate, intuitively because we seek to minimize the risk of someone intending to buy a good wine but actually getting a poor wine.
 
 
-2. DATA CLEANING
+#2. DATA CLEANING
 
-We downloaded the data set from the UCI Machine Learning Repository (link). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of differently colored wine may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
-
-FYLL I !!!!!
+We downloaded the data set from the UCI Machine Learning Repository [link]( https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of differently colored wine may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
+```{r}
+#download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wine-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
+wine<-read.csv("winequality-white.csv",sep=";")
+str(wine)
+hist(wine$quality,col = "red",main = "Quality")
+```
 
 The data set did not contain any unknown values. We did not search for any outliers (i.e. observations deviating extremely). The data set was split into training, validation and test sets by doing a random 70-20-10 split ”while preserving relative ratios of different labels of the target variable”. For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
 
-3 & 4. FEATURE IMPORTANCE SCORES / PCA
+#3 & 4. FEATURE IMPORTANCE SCORES / PCA
 
 CORRELATION MATRIX - LISTA
+```{r}
+#cor
+cor_wine<-cor(wine)
+cor_wine[lower.tri(cor_wine,diag=TRUE)] <-NA
+df_wine <- as.data.frame(as.table(cor_wine))
+df_wine <- df_wine[order(-abs(df_wine$Freq)),]
+#Top 10 highest correlated attributes
+df_wine[1:10,]
+```
 
 Mutual information criterion!
+
+
 
 The correlation matrix shows the linear dependence between all of the variables. If we were to remove some features, entries in the correlation matrix having large absolute value would determine pairs of variables of which one could be removed. However, since we value model accuracy over model simplicity, we choose to not remove any attributes.
 
