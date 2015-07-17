@@ -31,22 +31,47 @@ hist(wine$quality,col = "red",main = "Quality")
 ```
 
 The data set did not contain any unknown values. We did not search for any outliers (i.e. observations deviating extremely). The data set was split into training, validation and test sets by doing a random 70-20-10 split ”while preserving relative ratios of different labels of the target variable”. For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
+```{r}
+wine <- cbind(as.data.frame(scale(wine[,-12])),quality=wine[,12])
+library(caTools)
+s <- sample.split(Y = wine$quality,SplitRatio = 0.9)
+test <- wine[s==FALSE,]
+temp <-wine[s==TRUE,]
+s <- sample.split(Y = temp$quality,SplitRatio = 0.7)
+validation <- temp[s==FALSE,]
+train <- temp[s==TRUE,]
+```
+
 
 #3 & 4. FEATURE IMPORTANCE SCORES / PCA
 
 CORRELATION MATRIX - LISTA
 ```{r}
 #cor
-cor_wine<-cor(wine)
+cor_wine<-cor(train)
 cor_wine[lower.tri(cor_wine,diag=TRUE)] <-NA
 df_wine <- as.data.frame(as.table(cor_wine))
 df_wine <- df_wine[order(-abs(df_wine$Freq)),]
 #Top 10 highest correlated attributes
+colnames(df_wine)<- c("Var1","Var2","Cor")
 df_wine[1:10,]
 ```
 
 Mutual information criterion!
+```{r}
+#Shared information
+require(plyr)
+require(reshape)
+require(entropy)
+my_fun<-function(x){freq <- count(train,c("quality",x))
+colnames(freq) <- c("Var1","Var2","Freq")
+freq2d<-cast(freq, Var1 ~ Var2,fill=0,value ="Freq")
+mi.plugin(freqs2d = freq2d)}
 
+cn<- colnames(wine[,-12])
+mi <- sapply(cn,my_fun)
+sort(mi,decreasing = TRUE)
+```
 
 
 The correlation matrix shows the linear dependence between all of the variables. If we were to remove some features, entries in the correlation matrix having large absolute value would determine pairs of variables of which one could be removed. However, since we value model accuracy over model simplicity, we choose to not remove any attributes.
@@ -64,8 +89,9 @@ Regression:
 The first model we construct is simply to linearly regress quality on all of the attributes:
 
 ```{r}
-#lin.wine2 <- lm(quality ~ ., data = train2)
-#lin.wine2.mse <- mean((predict(lin.wine2, newdata = valid2[,-12]) - valid2[,12])^2)
+lin.model1 <- lm(quality ~ ., data = train)
+lin.pred1 <- predict(lin.model1, newdata = validation)
+mean((lin.pred1 - validation[,12])^2)
 ```
 
 The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
@@ -75,19 +101,19 @@ PLOT
 The only relationship which seems clear is a slight negative linear tendency, we therefore regress quality on density linearly:
 
 ```{r}
-#lin.wine2 <- lm(quality ~ density, data = train2)
-#lin.wine2.mse <- mean((predict(lin.wine2, newdata = valid2[,-12]) - valid2[,12])^2)
+lin.model2 <- lm(quality ~ density, data = train)
+lin.pred2 <- predict(lin.model2, newdata = validation) 
+mean((lin.pred2- validation[,12])^2)
 ```
 
 
 
 ```{r}
-#lasso.models <-lars(x = as.matrix(train2[,-12]), y = as.vector(train2[,12]), type = "lasso")
-#plot(lasso.models)
+require(lars)
+lasso.models <-lars(x = as.matrix(train[,-12]), y = as.vector(train[,12]), type = "lasso")
+plot(lasso.models)
 
-# lasso.predict <- rep(0,13)
-# for (i in 1:13){
-#  lasso.predict[i]<-mean((predict(lasso.models, as.matrix(valid2[,-12]))$fit[,i] - #valid2[,12])^2)}
+sapply(1:13,function(x){mean((predict(lasso.models,as.matrix(validation[,-12]))$fit[,x]-validation[,12])^2)})
 ```
 
 	konstruera lm / Signifikans i lm
