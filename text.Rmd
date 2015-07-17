@@ -99,7 +99,9 @@ mean((lin.pred1 - validation[,12])^2)
 
 The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
 
-PLOT
+```{r}
+plot(train$density, train$quality)
+```
 
 The only relationship which seems clear is a slight negative linear tendency, we therefore regress quality on density linearly:
 
@@ -110,6 +112,7 @@ lin.pred2 <- predict(lin.model2, newdata = validation)
 mean((lin.pred2- validation[,12])^2)
 ```
 
+We also construct a set of lasso models, these models give a penalty on the square of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
 
 ```{r}
 require(lars)
@@ -119,6 +122,15 @@ plot(lasso.models)
 lasso.mse <- sapply(1:14,function(x){mean((predict(lasso.models,as.matrix(validation[,-12]))$fit[,x]-validation[,12])^2)})
 plot(x=1:14,y=lasso.mse,xlab="Model")
 ```
+
+The more attributes that were removed, the higher the MSE became, this fact supports our argument for keeping most of our attributes. Moreover, we also constructed ridge models which penalize the absolute value of the linear coefficients and similar results were observed for these models:
+
+```{r}
+#ridge.models <- lm.ridge(quality ~ ., lambda = seq(0, 20), data = train)
+#plot(ridge.models)
+```
+
+The fact that the linear coefficents do not quickly shrink towards zero even when we penalize their absolute value further reinforces our argument for not removing attributes.
 
 	konstruera lm / Signifikans i lm
 
