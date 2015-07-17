@@ -69,8 +69,8 @@ require(MASS)
 require(lars)
 require(rgl)
 
-# ridge.models <- lm.ridge(quality ~ ., lambda = seq(0, 20), data = train2)
-# plot(ridge.models) - verkar inte vara så relevant modell?
+ridge.models <- lm.ridge(quality ~ ., lambda = seq(0, 20), data = train2)
+plot(ridge.models)
 
 lasso.models <-lars(x = as.matrix(train2[,-12]), y = as.vector(train2[,12]), type = "lasso")
 plot(lasso.models)
