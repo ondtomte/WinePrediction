@@ -110,6 +110,31 @@ lin.pred2 <- predict(lin.model2, newdata = validation)
 mean((lin.pred2- validation[,12])^2)
 ```
 
+Polynomial regression
+2-degree polynomial
+```{r}
+lin.model3 <- lm(quality ~ .^2, data = train)
+lin.pred3 <- predict(lin.model3, newdata = validation)
+#MSE
+mean((lin.pred3- validation[,12])^2)
+```
+3-degree polynomial
+```{r}
+lin.model4 <- lm(quality ~ .^2, data = train)
+lin.pred4 <- predict(lin.model4, newdata = validation)
+#MSE
+mean((lin.pred4- validation[,12])^2)
+```
+
+```{r}
+lin.model5 <- lm(quality ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol, data = train)
+lin.pred5 <- predict(lin.model5, newdata = validation)
+#MSE
+mean((lin.pred5- validation[,12])^2)
+
+trainPoly<-with(train,poly(fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,degree = 2,raw = TRUE))
+```
+
 
 ```{r}
 require(lars)
