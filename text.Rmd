@@ -111,8 +111,6 @@ lin.pred2 <- predict(lin.model2, newdata = validation)
 #MSE
 mean((lin.pred2- validation[,12])^2)
 ```
-
-<<<<<<< HEAD
 Polynomial regression
 2-degree polynomial
 ```{r}
@@ -138,9 +136,7 @@ mean((lin.pred5- validation[,12])^2)
 trainPoly<-with(train,poly(fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,degree = 2,raw = TRUE))
 ```
 
-=======
 We also construct a set of lasso models, these models give a penalty on the square of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
->>>>>>> 58fc2c21db451d4b5f8679e112522f65db2acc2b
 
 ```{r}
 require(lars)
