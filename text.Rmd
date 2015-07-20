@@ -150,8 +150,41 @@ plot(x=1:14,y=lasso.mse,xlab="Model")
 The more attributes that were removed, the higher the MSE became, this fact supports our argument for keeping most of our attributes. Moreover, we also constructed ridge models which penalize the absolute value of the linear coefficients and similar results were observed for these models:
 
 ```{r}
-#ridge.models <- lm.ridge(quality ~ ., lambda = seq(0, 20), data = train)
+#require(MASS)
+#lambda<-seq(0, 10,by = 0.05)
+#formulas<- c(formula(quality ~ .),formula(quality ~ .^2),formula(quality ~ .^3))
+#ridge.models <-lapply(formulas,function(x){lm.ridge(formula = x, lambda = lambda, data = train)})
 #plot(ridge.models)
+#all.ridge.mse<-sapply(1:3,function(x){
+#  pred.ridge.train = scale(train[-12],center = F, scale = ridge.models[[x]]$scales)%*% #ridge.models[[x]]$coef + ridge.models[[x]]$ym
+#pred.ridge.test = scale(test[-12],center = F, scale = ridge.models[[x]]$scales)%*% #ridge.models[[x]]$coef + ridge.models[[x]]$ym
+#MSE
+#mse.ridge.train<-apply(pred.ridge.train,MARGIN = 2,FUN = function(x){mean((train[12]-x)^2)})
+#mse.ridge.test<-apply(pred.ridge.test,MARGIN = 2,FUN = function(x){mean((test[12]-x)^2)})
+#list(mse.train= mse.ridge.train, mse.test= mse.ridge.test, dim=x)
+#})
+#plot(y=mse.ridge.train,x=lambda)
+#plot(y=mse.ridge.test,x=lambda)
+
+require(MASS)
+lambda<-seq(0, 100,by = 0.1)
+#formulas<- c(formula(quality ~ .),formula(quality ~ .^2),formula(quality ~ .^3))
+ridge.models <-lm.ridge(formula = quality ~ ., lambda = lambda, data = train)
+plot(ridge.models)
+pred.ridge.train = scale(train[-12],center = F, scale = ridge.models$scales)%*%ridge.models$coef + ridge.models$ym
+pred.ridge.test = scale(test[-12],center = F, scale = ridge.models$scales)%*%ridge.models$coef + ridge.models$ym
+#MSE
+mse.ridge.train<-apply(pred.ridge.train,MARGIN = 2,FUN = function(x){mean((train[12]-x)^2)})
+mse.ridge.test<-apply(pred.ridge.test,MARGIN = 2,FUN = function(x){mean((test[12]-x)^2)})
+
+plot(y=mse.ridge.train,x=lambda)
+plot(y=mse.ridge.test,x=lambda)
+
+
+
+
+
+
 ```
 
 The fact that the linear coefficents do not quickly shrink towards zero even when we penalize their absolute value further reinforces our argument for not removing attributes.
