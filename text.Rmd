@@ -32,6 +32,7 @@ hist(wine$quality,col = "red",main = "Quality")
 
 The data set did not contain any unknown values. We did not search for any outliers (i.e. observations deviating extremely). The data set was split into training, validation and test sets by doing a random 70-20-10 split ”while preserving relative ratios of different labels of the target variable”. For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
 ```{r}
+#TODO change split ratio 
 wine <- cbind(as.data.frame(scale(wine[,-12])),quality=wine[,12])
 library(caTools)
 set.seed(23)
@@ -43,6 +44,13 @@ validation <- temp[s==FALSE,]
 train <- temp[s==TRUE,]
 ```
 
+```{r}
+euc <- sqrt(train[,1]^2+train[,2]^2+train[,3]^2+train[,4]^2+train[,5]^2+train[,6]^2+train[,7]^2+train[,8]^2+train[,9]^2+train[,10]^2+train[,11]^2)
+
+sort(euc)
+
+# ta bort fem sista?
+```
 
 #3 & 4. FEATURE IMPORTANCE SCORES / PCA
 
@@ -79,9 +87,16 @@ The correlation matrix shows the linear dependence between all of the variables.
 
 We used PCA to find the directions of maximum variance (orthogonal?). The 11th principle component showed a sharp decline in standard deviation, we therefore choose to create a transformation of our original data set where our data is expressed using only the ten first principle components. We will use both the original data set and the PCA transformed data set when constructing models, and then compare these models to each other.
 
+```{r}
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
+PCA$sdev
+```
+
 (Target audience / Expert opinions?)
 
-5. MODELS
+#5. MODELS
+
+##5.1 REGRESSION
 
 To get an MSE to compare our models’ performance with, we calculate the validation MSE obtained by simply guessing the mean quality of the training data, we call this MSE our baseline error. We except our other models to perform much better than this baseline model.
 
@@ -90,11 +105,15 @@ Regression:
 The first model we construct is simply to linearly regress quality on all of the attributes:
 
 ```{r}
+MSE <- function(x,y)
+  {mean((x - y)^2)}
+```
+
+```{r}
 lin.model1 <- lm(quality ~ ., data = train)
 summary(lin.model1)
 lin.pred1 <- predict(lin.model1, newdata = validation)
-#MSE
-mean((lin.pred1 - validation[,12])^2)
+MSE(lin.pred1, validation[,12])
 ```
 
 The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
@@ -108,32 +127,48 @@ The only relationship which seems clear is a slight negative linear tendency, we
 ```{r}
 lin.model2 <- lm(quality ~ density, data = train)
 lin.pred2 <- predict(lin.model2, newdata = validation)
-#MSE
-mean((lin.pred2- validation[,12])^2)
+MSE(lin.pred2, validation[,12])
 ```
+
+PCA LM
+
+```{r}
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)  
+  
+PCA.lm.mse <- c()
+for (i in 1:11){
+  if (i == 1){
+    PCA.train <- as.data.frame(cbind(PC1 = PCA$x[,1:i], quality = train[,12]))
+  } else {
+    PCA.train <- as.data.frame(cbind(PCA$x[,1:i], quality = train[,12]))
+  }
+  PCA.lm <- lm(quality ~ ., data = PCA.train)
+  if (i == 1){
+    PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
+    PCA.validation <- data.frame(PC1 = PCA.validation)
+  } else {
+    PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
+                                       PCA$rotation)[,1:i])
+  }
+  PCA.lm.mse[i] <- MSE(predict(PCA.lm, PCA.validation), validation[,12])
+}
+```
+
 Polynomial regression
 2-degree polynomial
+
 ```{r}
 lin.model3 <- lm(quality ~ .^2, data = train)
 lin.pred3 <- predict(lin.model3, newdata = validation)
-#MSE
-mean((lin.pred3- validation[,12])^2)
+MSE(lin.pred3, validation[,12])
 ```
+
 3-degree polynomial
+
 ```{r}
-lin.model4 <- lm(quality ~ .^2, data = train)
+lin.model4 <- lm(quality ~ .^3, data = train)
 lin.pred4 <- predict(lin.model4, newdata = validation)
-#MSE
-mean((lin.pred4- validation[,12])^2)
-```
-
-```{r}
-lin.model5 <- lm(quality ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol, data = train)
-lin.pred5 <- predict(lin.model5, newdata = validation)
-#MSE
-mean((lin.pred5- validation[,12])^2)
-
-trainPoly<-with(train,poly(fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,degree = 2,raw = TRUE))
+MSE(lin.pred4, validation[,12])
 ```
 
 We also construct a set of lasso models, these models give a penalty on the square of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
@@ -143,144 +178,223 @@ require(lars)
 lasso.models <-lars(x = as.matrix(train[,-12]), y = as.vector(train[,12]), type = "lasso")
 plot(lasso.models)
 
-lasso.mse <- sapply(1:14,function(x){mean((predict(lasso.models,as.matrix(validation[,-12]))$fit[,x]-validation[,12])^2)})
+lasso.mse <- sapply(1:14,function(x){MSE(predict(lasso.models,as.matrix(validation[,-12]))$fit[,x], validation[,12])})
 plot(x=1:14,y=lasso.mse,xlab="Model")
 ```
 
 The more attributes that were removed, the higher the MSE became, this fact supports our argument for keeping most of our attributes. Moreover, we also constructed ridge models which penalize the absolute value of the linear coefficients and similar results were observed for these models:
 
 ```{r}
-#require(MASS)
-#lambda<-seq(0, 10,by = 0.05)
-#formulas<- c(formula(quality ~ .),formula(quality ~ .^2),formula(quality ~ .^3))
-#ridge.models <-lapply(formulas,function(x){lm.ridge(formula = x, lambda = lambda, data = train)})
-#plot(ridge.models)
-#all.ridge.mse<-sapply(1:3,function(x){
-#  pred.ridge.train = scale(train[-12],center = F, scale = ridge.models[[x]]$scales)%*% #ridge.models[[x]]$coef + ridge.models[[x]]$ym
-#pred.ridge.test = scale(test[-12],center = F, scale = ridge.models[[x]]$scales)%*% #ridge.models[[x]]$coef + ridge.models[[x]]$ym
-#MSE
-#mse.ridge.train<-apply(pred.ridge.train,MARGIN = 2,FUN = function(x){mean((train[12]-x)^2)})
-#mse.ridge.test<-apply(pred.ridge.test,MARGIN = 2,FUN = function(x){mean((test[12]-x)^2)})
-#list(mse.train= mse.ridge.train, mse.test= mse.ridge.test, dim=x)
-#})
-#plot(y=mse.ridge.train,x=lambda)
-#plot(y=mse.ridge.test,x=lambda)
+library(MASS)
 
-require(MASS)
-lambda<-seq(0, 100,by = 0.1)
-#formulas<- c(formula(quality ~ .),formula(quality ~ .^2),formula(quality ~ .^3))
-ridge.models <-lm.ridge(formula = quality ~ ., lambda = lambda, data = train)
-plot(ridge.models)
-pred.ridge.train = scale(train[-12],center = F, scale = ridge.models$scales)%*%ridge.models$coef + ridge.models$ym
-pred.ridge.test = scale(test[-12],center = F, scale = ridge.models$scales)%*%ridge.models$coef + ridge.models$ym
-#MSE
-mse.ridge.train<-apply(pred.ridge.train,MARGIN = 2,FUN = function(x){mean((train[12]-x)^2)})
-mse.ridge.test<-apply(pred.ridge.test,MARGIN = 2,FUN = function(x){mean((test[12]-x)^2)})
+trainPoly<-lapply(1:3,function(x){
+  foo<- with(train,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
+foo<-as.data.frame(foo)
+foo$quality=train$quality
+list(foo)
+})
 
-plot(y=mse.ridge.train,x=lambda)
-plot(y=mse.ridge.test,x=lambda)
+validationPoly<-lapply(1:3,function(x){
+  foo<- with(validation,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
+foo<-as.data.frame(foo)
+list(foo)
+})
+
+lambda<- seq(0, 2500,by = 100)
+ridge.models<- lapply(1:3,function(x){lm.ridge(quality~.,data=as.data.frame(trainPoly[[x]]),lambda = lambda)})
+
+pred.ridge.train <- lapply(1:3, function(x){scale(as.data.frame(trainPoly[[x]])[-ncol(as.data.frame(trainPoly[[x]]))],center = TRUE, scale = ridge.models[[x]]$scales)%*%ridge.models[[x]]$coef + ridge.models[[x]]$ym})
+
+pred.ridge.validation <- lapply(1:3, function(x){scale(as.data.frame(validationPoly[[x]]),center = TRUE, scale = ridge.models[[x]]$scales)%*%ridge.models[[x]]$coef + ridge.models[[x]]$ym})
+
+mse.ridge.train<-lapply(1:3,function(x){apply(pred.ridge.train[[x]],MARGIN = 2,FUN = function(x){mean((train[12]-x)^2)})})
+
+mse.ridge.validation<-lapply(1:3,function(x){apply(pred.ridge.validation[[x]],MARGIN = 2,FUN = function(x){mean((validation[12]-x)^2)})})
+
+plot(y=mse.ridge.train[[3]],x=lambda,type="l",ylim=c(0.3,0.7))
+lines(y=mse.ridge.validation[[3]],x=lambda)
+
+plot(ridge.models[[3]])
+
+#Learninng rate
+#TODO Make a function
+#plot.learning.rate<-function(model,data,min,max){
+#  set.seed(23)
+#  
+#  
+#}
+set.seed(23)
+n<-seq(500,4000, by=100)
+mse.train<- vector()
+mse.validation<-vector()
+for(i in n){
+  temp.mse.train<-0
+  temp.mse.validation<-0
+  for(j in 1:100){
+    k<- sample(x = 1:nrow(wine),size =i,replace = FALSE)
+    subset <- wine[k,]
+    s<- sample.split(subset, SplitRatio = 2/3)
+    trainSubset<- subset[s==TRUE,]
+    validationSubset<-subset[s==FALSE,]
+    mod<-lm(quality~.^3,data=trainSubset)
+    temp.mse.train<-mean((predict(mod)-trainSubset$quality)^2)+temp.mse.train
+    temp.mse.validation<-mean((predict(mod,newdata=validationSubset)-validationSubset$quality)^2)+     temp.mse.validation
+    
+  }
+  mse.train = c(mse.train,temp.mse.train/100)
+  mse.validation=c(mse.validation,temp.mse.validation/100)
+
+}
+
+plot(x=n,y=mse.validation,type="l",col="blue",ylim=c(min(mse.train),min(c(2,max(mse.validation)))))
+lines(x=n,y=mse.train,type="l", col="red")
 ```
 
 The fact that the linear coefficents do not quickly shrink towards zero even when we penalize their absolute value further reinforces our argument for not removing attributes.
 
-	konstruera lm / Signifikans i lm
+```{r}
+# thin plate spline
+  
+  d <- function(X,Y){
+    sqrt(sum((X - Y)^2))}
+  
+  f <- function(X,j){
+    if (d(X, train[j, 1:11]) > 0){(d(X, train[j, 1:11])^2)*log(d(X, train[j, 1:11]))}
+    else {0}}
+  
+  projections <- matrix(nrow = length(train[,1]), ncol = length(train[,1]))
+  
+#  for (i in 1:length(train[,1])){
+#    for (j in 1:length(train[,1])){
+#      projections[i,j] <- f(train[i, 1:11], j)
+#    }}
+  
+#  projections.data <- data.frame(cbind(projections, quality = train$quality))
+  
+#  ridge.model <- lm.ridge(quality ~ ., data = projections.data, lambda = 1)
+  
+#  ridge.betas <- coef(ridge.model)
 
-	Lasso / Ridge
+# applicera nedanstående funktion!
 
-	Spline
+  f.ridge <- function(X){
+    v <- c(ridge.betas[1])
+    for (i in 1:length(train[,1])){v[i+1] <- ridge.betas[i+1]*f(X,i)}
+    sum(v)}
+  
+#  new.vector <- c()
+#  for (i in 1:length(validation[,1])){
+#    new.vector[i] <- f.ridge(validation[i,1:11])}
+# slut thin plate spline
+```
 
-Klassificering:
+```{r}
+require(fields)
 
-	logistisk regression
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE) 
+  
+thin.plate.PCA <- c()  
+for (i in 1:11){
+  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
+  PCA.validation <- as.matrix(data.frame(PC1 = PCA.validation))
+  } else {PCA.validation <- (as.matrix(validation[,-12]) %*% PCA$rotation)[,1:i]}
+  thin.plate <- Tps(PCA$x[,1:i], train[,12])
+  thin.plate.PCA[i] <- MSE(predict(thin.plate, x = PCA.validation), validation[,12])}
 
-	QDA / LDA
+for (i in c(0.001, 0.01, 0.1, 1, 5, 10)){
+PCA.validation <- (as.matrix(validation[,-12]) %*% PCA$rotation)[,1:5]
+thin.plate <- Tps(PCA$x[,1:5], train[,12], lambda = i)
+print(MSE(predict(thin.plate, x = PCA.validation), validation[,12]))}
 
-	Trees / Forests
+```
 
-	SVM
-	
+```{r}
+require(randomForest)
+
+rf.reg1 <- randomForest(quality ~ ., data = train, ntree = 10)
+rf.reg1.tuned <- randomForest(quality ~ ., data = train, ntree = which.min(rf.reg1$mse))
+pred <- predict(rf.reg1.tuned, validation[,-12])
+rf.mse <- MSE(pred, validation[,12])
+rf.mse
+
+rf.reg2 <- randomForest(log(quality) ~ ., data = train, ntree = 20)
+rf.reg2.tuned <- randomForest(log(quality) ~ ., data = train, ntree = which.min(rf.reg2$mse))
+pred <- predict(rf.reg2.tuned, validation[,-12])
+rf.mse <- MSE(exp(pred), validation[,12])
+rf.mse
+
+# PCA RF
+
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
+
+rf.mse.PCA <- c()
+
+for (i in 1:11){
+
+  if (i == 1){
+    PCA.train <- as.data.frame(cbind(PC1 = PCA$x[,1:i], quality = train[,12]))
+  } else {
+    PCA.train <- as.data.frame(cbind(PCA$x[,1:i], quality = train[,12]))
+  }
+  rf.reg2 <- randomForest(log(quality) ~ .^3, data = PCA.train, ntree = 15)
+  rf.reg2.tuned <- randomForest(log(quality) ~ .^3, data = PCA.train, ntree = which.min(rf.reg2$mse))
+
+  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
+    PCA.validation <- data.frame(PC1 = PCA.validation)
+  } else {
+    PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
+    PCA$rotation)[,1:i])}
+
+  pred <- predict(rf.reg2.tuned, PCA.validation)
+  rf.mse.PCA[i] <- MSE(exp(pred), validation[,12])
+}
+plot(rf.mse.PCA)
+min(rf.mse.PCA)
+```
+
+```{r}
+loc.reg <- loess(quality ~ ., data = PCA.train, degree = 1)
+loc.reg.mse <- MSE(predict(loc.reg, newdata = PCA.validation)[-1285], validation[-1285,12])
+
+local.regression <- function(k, l){
+
+random <- sample(1:length(validation[,1]), l)
+
+pred <- c()
+for (i in random){
+
+  distance <- c()
+  for (j in 1:length(train[,1])){
+    distance[j] <- sum((validation[i,-12] - train[j,-12])^2)}
+
+  closest.x <- sort(distance, index.return=TRUE)$ix[1:k]
+  df <- data.frame(train[closest.x,])
+
+  loc.poly <- lm(quality ~ poly(fixed.acidity, volatile.acidity, citric.acid, residual.sugar,
+  chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol, degree
+  = 1, raw = TRUE), data = df)
+
+  pred[i] <- loc.poly$coefficients[1] + loc.poly$coefficients[2]*validation[i,1] +
+  loc.poly$coefficients[3]*validation[i,2] + loc.poly$coefficients[4]*validation[i,3] + 
+  loc.poly$coefficients[5]*validation[i,4] + loc.poly$coefficients[6]*validation[i,5] +
+  loc.poly$coefficients[7]*validation[i,6] + loc.poly$coefficients[8]*validation[i,7] +
+  loc.poly$coefficients[9]*validation[i,8] + loc.poly$coefficients[10]*validation[i,9] +
+  loc.poly$coefficients[11]*validation[i,10] + loc.poly$coefficients[12]*validation[i,11]}
+
+  mse.loc <- list(MSE(validation[random,12], pred[random]))
+
+  return(mse.loc)
+}
+```
+
+##5.2 CLASSIFICATION
 	
 ```{r}
-train$binary.quality <- train$quality >= 6
-validation$binary.quality <- validation$quality >= 6
-test$binary.quality <- test$quality >= 6
-
-baseline.misclass <- length(which(validation$binary.quality == FALSE)) / length(validation$binary.quality)
-
-wine.knn.misclass <- c()
-
-for(i in 1:25){
-wine.knn <- FNN::knn(train = train[,1:11], test = validation[,1:11], k = i, cl = train[,13])
-wine.knn.class <- wine.knn == validation[,13]
-wine.knn.misclass[i] <- 1-(length(which(wine.knn.class))/length(validation[,13]))}
-
-require(MASS)
-
-train.binary <- train[,-12]
-validation.binary <- validation[,-12]
-test.binary <- test[,-12]
-
-# cross val
-
-wine.lda.cv <- lda(binary.quality ~ ., data = train.binary, CV = TRUE)
-wine.qda.cv <- qda(binary.quality ~ ., data = train.binary, CV = TRUE)
-
-cv.misclass.error.lda <- length(which(wine.lda.cv$class != train.binary$binary.quality)) / length(train.binary$binary.quality)
-cv.misclass.error.qda <- length(which(wine.qda.cv$class != train.binary$binary.quality)) / length(train.binary$binary.quality)
-
-# end cross val
-
-wine.lda <- lda(binary.quality ~ ., data = train.binary)
-wine.qda <- qda(binary.quality ~ ., data = train.binary)
-
-qda.validation.mce <- length(which(predict(wine.qda, validation.binary[,-12])$class != validation.binary[,12])) / length(validation.binary[,12])
-
-lda.validation.mce <- length(which(predict(wine.lda, validation.binary[,-12])$class != validation.binary[,12])) / length(validation.binary[,12])
-
-require(e1071)
-
-train.binary$binary.quality <- as.factor(train.binary$binary.quality)
-validation.binary$binary.quality <- as.factor(validation.binary$binary.quality)
-test.binary$binary.quality <- as.factor(test.binary$binary.quality)
-
-valid.mces <- matrix(ncol = 8, nrow = 4)
-
-svm.fct <- function(x){
-
-for (j in c("linear", "polynomial", "radial", "sigmoid")){
-  
-  if (j == "linear"){k <- 1}
-  if (j == "polynomial"){k <- 2}
-  if (j == "radial"){k <- 3}
-  if (j == "sigmoid"){k <- 4}
-  
-#  for (i in c(0.01, 0.3, 3, 5, 10)){
-  for (i in c(0.01, 0.3, 3, 5, 10, 20, 30, 40)){
-    
-    if (i == 0.01){l <- 1}
-    if (i == 0.3){l <- 2}
-    if (i == 3){l <- 3}
-    if (i == 5){l <- 4}
-    if (i == 10){l <- 5}
-    if (i == 20){l <- 6}
-    if (i == 30){l <- 7}
-    if (i == 40){l <- 8}
-    
-    if (x == 0){model <- svm(binary.quality ~ ., data = train.binary, kernel = j, cost = i)}
-    if (x == 1){
-      cw <- c("0" = 1, "1" = length(which(train.binary$binary.quality == 0)) /
-      length(which(binary.train2$quality == 1)))
-      model <- svm(binary.quality ~ ., data = train.binary[-12], kernel = j, cost = i,
-      class.weights = cw)}
-    pred <- predict(model, newdata = validation.binary[,-12])
-    valid.mces[k,l] <- length(which(validation.binary$binary.quality !=
-    pred)) / length(validation$binary.quality)}}
-  
-  return(list(valid.mces))}
-
-
-
-library(e1071)
+MCE <- function(x, y)
+  {mean(x != y)}
+```
+	
+```{r}
 train$binary.quality <- train$quality >= 6
 validation$binary.quality <- validation$quality >= 6
 test$binary.quality <- test$quality >= 6
@@ -289,6 +403,46 @@ test$quality=NULL
 validation$quality=NULL
 train$binary.quality<- as.factor(train$binary.quality)
 validation$binary.quality<-as.factor(validation$binary.quality)
+test$binary.quality<- as.factor(test$binary.quality)
+
+baseline.misclass <- MCE(TRUE, validation$binary.quality)
+baseline.misclass
+```
+
+
+```{r}
+require(FNN)
+wine.knn.misclass <- c()
+
+for(i in 1:25){
+  wine.knn <- knn(train = train[,1:11], test = validation[,1:11], k = i, cl = train[,12])
+  wine.knn.misclass[i] <- MCE(wine.knn, validation[,12])
+}
+plot(wine.knn.misclass)
+```
+
+```{r}
+require(MASS)
+
+# cross val
+
+wine.lda.cv <- lda(binary.quality ~ ., data = train, CV = TRUE)
+wine.qda.cv <- qda(binary.quality ~ ., data = train, CV = TRUE)
+
+cv.misclass.error.lda <- MCE(wine.lda.cv$class, train[,12])
+cv.misclass.error.qda <- MCE(wine.qda.cv$class, train[,12])
+
+# end cross val
+
+wine.lda <- lda(binary.quality ~ ., data = train)
+wine.qda <- qda(binary.quality ~ ., data = train)
+
+qda.validation.mce <- MCE(predict(wine.qda, validation[,-12])$class, validation[,12])
+lda.validation.mce <- MCE(predict(wine.lda, validation[,-12])$class, validation[,12])
+```
+
+```{r}
+require(e1071)
 
 #Hyperparameters
 degree<-c(3,4)
@@ -319,3 +473,104 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
 
 View(df[order(as.numeric(df$validationError)),])
 ```	
+
+
+```{r}
+  
+require(randomForest)
+
+rf.class <- randomForest(binary.quality ~ ., data = train, ntree = 30)
+rf.class.tuned <- randomForest(binary.quality ~ ., data = train, ntree = which.min(rf.class$err.rate[,1]))
+pred <- predict(rf.class.tuned, validation[,-12])
+rf.mce <- MCE(pred, validation[,12])
+
+# PCA RF CLASS
+
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
+
+rf.mce.PCA <- c()
+
+for (i in 1:2){
+  if (i == 1){
+    PCA.train <- cbind(data.frame(PC1 = PCA$x[,1:i]), binary.quality = train[,12])
+  } else {
+    PCA.train <- cbind(as.data.frame(PCA$x[,1:i]), binary.quality = train[,12])
+  }
+  rf.class <- randomForest(binary.quality ~ ., data = PCA.train, ntree = 30)
+  rf.class.tuned <- randomForest(binary.quality ~ ., data = PCA.train, ntree =   which.min(rf.class$err.rate[,1]))
+  
+  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
+  PCA.validation <- data.frame(PC1 = PCA.validation)
+  } else {PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
+                                             PCA$rotation)[,1:i])}
+  
+  pred <- predict(rf.class.tuned, PCA.validation)
+  rf.mce.PCA[i] <- MCE(pred, validation[,12])}
+
+```
+
+```{r}
+
+require(ada)
+
+adaboost <- ada(train[,1:11], train[,12], iter = 10)
+adaboost.tuned <- ada(train[,1:11], train[,12], iter = 5)
+pred <- predict(adaboost.tuned, validation[,-12])
+ada.mce <- MCE(pred, validation[,12])
+
+```
+
+```{r}
+
+# ^2 och ^3 ....
+for (i in seq(0,1, 0.1)){
+  log.reg <- glm(binary.quality ~ ., data = train, family = "binomial")
+  pred <- predict.glm(log.reg, newdata = validation, type = "response")
+  pred <- pred > i
+  mce.log.reg <- MCE(pred, validation$binary.quality)
+  print(mce.log.reg)}
+
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)  
+
+for (i in 1:11){
+  
+  if (i == 1){PCA.train <- cbind(data.frame(PC1 = PCA$x[,1:i]), binary.quality = train[,12])
+  } else {PCA.train <- cbind(as.data.frame(PCA$x[,1:i]), binary.quality = train[,12])}
+  
+  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
+  PCA.validation <- data.frame(PC1 = PCA.validation)
+  } else {PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
+                                             PCA$rotation)[,1:i])}
+  
+  log.reg <- glm(binary.quality ~ ., data = PCA.train, family = "binomial")
+  pred <- predict.glm(log.reg, newdata = PCA.validation, type = "response")
+  pred <- pred > 0.5
+  print(MCE(pred, validation$binary.quality))}
+
+require(ROCR)
+
+log.reg <- glm(binary.quality ~ ., data = train, family = "binomial")
+pred <- predict.glm(log.reg, newdata = validation, type = "response")
+pred.rocr <- prediction(pred, validation$binary.quality)
+
+# accuarcy
+acc <- performance(pred.rocr, "acc")
+plot(acc)
+
+# precision
+prec <- performance(pred.rocr, "ppv")
+plot(prec)
+
+# recall
+rec <- performance(pred.rocr, "tpr")
+plot(rec)
+
+tot <- as.vector(acc@y.values)[[1]] + as.vector(prec@y.values)[[1]] + as.vector(rec@y.values)[[1]]
+plot(as.vector(acc@x.values)[[1]], tot)
+
+for (i in 1:15){
+  tot <- as.vector(acc@y.values)[[1]] + i * as.vector(prec@y.values)[[1]] + as.vector(rec@y.values)[[1]]
+  plot(as.vector(acc@x.values)[[1]], tot)
+}
+
+```
