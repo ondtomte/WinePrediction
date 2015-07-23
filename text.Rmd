@@ -28,6 +28,7 @@ We downloaded the data set from the UCI Machine Learning Repository [link]( http
 wine<-read.csv("winequality-white.csv",sep=";")
 str(wine)
 hist(wine$quality,col = "red",main = "Quality")
+
 ```
 
 The data set did not contain any unknown values. We did not search for any outliers (i.e. observations deviating extremely). The data set was split into training, validation and test sets by doing a random 70-20-10 split ”while preserving relative ratios of different labels of the target variable”. For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
@@ -42,6 +43,40 @@ temp <-wine[s==TRUE,]
 s <- sample.split(Y = temp$quality,SplitRatio = 0.7)
 validation <- temp[s==FALSE,]
 train <- temp[s==TRUE,]
+
+#Create data set with diffrent attribute
+trainPoly<-lapply(2:3,function(x){
+  foo<- with(train,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
+foo<-as.data.frame(foo)
+foo$quality=train$quality
+list(foo)
+})
+
+validationPoly<-lapply(1:3,function(x){
+  foo<- with(validation,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
+foo<-as.data.frame(foo)
+list(foo)
+})
+
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
+PCA.validation<-lapply(1:11, function(i){
+    if (i == 1){
+    foo <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
+    list(data.frame(PC1 = foo))
+  } else {
+     list(as.data.frame((as.matrix(validation[,-12]) %*%
+                                         PCA$rotation)[,1:i]))
+  }
+})
+
+
+
+trainDataSets<- list(normal=train,poly2=trainPoly[[1]],poly3=trainPoly[[2]],pca1=PCA$x,pca10=PCA$x[,1:10],pca9=PCA$x[,1:9],pca8=PCA$x[,1:8],pca7=PCA$x[,1:7],pca6=PCA$x[,1:6],pca5=PCA$x[,1:5],pca4=PCA$x[,1:4],pca3=PCA$x[,1:3],pca2=PCA$x[,1:2],pca1=PCA$x[,1])
+
+validationDataSets<-list(normal=validation,poly2=validation[[1]],poly3=validation[[2]],pca=PCA.validation[[11]],pca10=PCA.validation[[10]],pca9=PCA.validation[[9]],pca8=PCA.validation[[8]],pca7=PCA.validation[[7]],pca6=PCA.validation[[6]],pca5=PCA.validation[[5]],pca4=PCA.validation[[4]],pca3=PCA.validation[[3]],pca2=PCA.validation[[2]],pca1=PCA.validation[[1]])
+
+
+
 ```
 
 ```{r}
