@@ -391,12 +391,12 @@ min(rf.mse.PCA)
 loc.reg <- loess(quality ~ ., data = PCA.train, degree = 1)
 loc.reg.mse <- MSE(predict(loc.reg, newdata = PCA.validation)[-1285], validation[-1285,12])
 
-local.regression <- function(k, l){
-
-random <- sample(1:length(validation[,1]), l)
+# k <- 30
+local.regression <- function(k){
 
 pred <- c()
-for (i in random){
+
+for (i in 1:length(validation[,1])){
 
   distance <- c()
   for (j in 1:length(train[,1])){
@@ -409,17 +409,23 @@ for (i in random){
   chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol, degree
   = 1, raw = TRUE), data = df)
 
-  pred[i] <- loc.poly$coefficients[1] + loc.poly$coefficients[2]*validation[i,1] +
+  pred[i] <- (loc.poly$coefficients[1] + loc.poly$coefficients[2]*validation[i,1] +
   loc.poly$coefficients[3]*validation[i,2] + loc.poly$coefficients[4]*validation[i,3] + 
   loc.poly$coefficients[5]*validation[i,4] + loc.poly$coefficients[6]*validation[i,5] +
   loc.poly$coefficients[7]*validation[i,6] + loc.poly$coefficients[8]*validation[i,7] +
   loc.poly$coefficients[9]*validation[i,8] + loc.poly$coefficients[10]*validation[i,9] +
-  loc.poly$coefficients[11]*validation[i,10] + loc.poly$coefficients[12]*validation[i,11]}
+  loc.poly$coefficients[11]*validation[i,10] + loc.poly$coefficients[12]*validation[i,11])
+  
+  print(i/length(validation[,1]))}
 
-  mse.loc <- list(MSE(validation[random,12], pred[random]))
+write.table(pred, file = "pred.txt", row.names = FALSE, col.names = FALSE, na = "NA")
 
-  return(mse.loc)
-}
+remove <- which(is.na(pred))
+
+if (is.na(remove[1])) {mse.loc.reg <- MSE(pred, validation[,12])}
+if (is.na(remove[1]) == FALSE) {mse.loc.reg <- MSE(pred[-remove], validation[-remove,12])}
+
+return(list(mse.loc.reg))}
 ```
 
 ##5.2 CLASSIFICATION
