@@ -228,47 +228,6 @@ lin.pred2 <- predict(lin.model2, newdata = validation)
 MSE(lin.pred2, validation[,12])
 ```
 
-PCA LM
-
-```{r}
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)  
-  
-PCA.lm.mse <- c()
-for (i in 1:11){
-  if (i == 1){
-    PCA.train <- as.data.frame(cbind(PC1 = PCA$x[,1:i], quality = train[,12]))
-  } else {
-    PCA.train <- as.data.frame(cbind(PCA$x[,1:i], quality = train[,12]))
-  }
-  PCA.lm <- lm(quality ~ ., data = PCA.train)
-  if (i == 1){
-    PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
-    PCA.validation <- data.frame(PC1 = PCA.validation)
-  } else {
-    PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
-                                       PCA$rotation)[,1:i])
-  }
-  PCA.lm.mse[i] <- MSE(predict(PCA.lm, PCA.validation), validation[,12])
-}
-```
-
-Polynomial regression
-2-degree polynomial
-
-```{r}
-lin.model3 <- lm(quality ~ .^2, data = train)
-lin.pred3 <- predict(lin.model3, newdata = validation)
-MSE(lin.pred3, validation[,12])
-```
-
-3-degree polynomial
-
-```{r}
-lin.model4 <- lm(quality ~ .^3, data = train)
-lin.pred4 <- predict(lin.model4, newdata = validation)
-MSE(lin.pred4, validation[,12])
-```
-
 We also construct a set of lasso models, these models give a penalty on the square of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
 
 ```{r}
