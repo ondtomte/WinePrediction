@@ -1,57 +1,103 @@
 ---
 title: "Project"
 author: "Simon Almerström Przybyl & Daniel Öhman"
-date: "17 juli 2015"
+date: "July 27th 2015"
 output: html_document
 ---
 
 #1. INTRO / EXPLAIN DATA SET AND TASK
 
-For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion. Our task was to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
+For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
 
-1 - We view the quality of wine as a continuous variable allowed to take any value on the interval [0,10], this view of the problem yields a regression problem.
-
-2 - We define a good wine to be a wine having quality larger than or equal to 6, and a poor wine to be a wine having quality less than 6. This yields a binary classification problem of separating good wine from poor wine.
-
-Regarding the accuracy of the different subtasks:
-
-In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model (this model will be specified shortly).
-
-In the classification subtask, our main interest is to have a high precision rate, intuitively because we seek to minimize the risk of someone intending to buy a good wine but actually getting a poor wine.
-
-
-#2. DATA CLEANING
-
-We downloaded the data set from the UCI Machine Learning Repository [link]( https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of differently colored wine may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
 ```{r}
 #download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wine-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
 wine<-read.csv("winequality-white.csv",sep=";")
 str(wine)
-hist(wine$quality,col = "red",main = "Quality")
-
 ```
 
-The data set did not contain any unknown values. We did not search for any outliers (i.e. observations deviating extremely). The data set was split into training, validation and test sets by doing a random 70-20-10 split ”while preserving relative ratios of different labels of the target variable”. For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
+Our task is thus to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
+
+1 - We view the quality of wine as a continuous variable allowed to take any value on the interval [0,10], this view of the problem yields a regression problem.
+
+2 - We define a good wine to be a wine having quality larger than or equal to 6, and a poor wine to be a wine having quality strictly less than 6. This yields a binary classification problem of separating good wine from poor wine.
+
+Regarding the accuracy of the different subtasks:
+
+In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model consists of simply guessing the mean quality of the training.
+
 ```{r}
+hist(train$quality,col = "red",main = "Training", xlab = "Quality")
+```
+
+Note that the histogram plots the quality of the training observations, we will describe the process of splitting the data into training, validation and test sets more thorughly later.
+
+Since our training data is approximately normally distrubuted around 6 (with of variance of 0.7723022), our baseline model will perform quite well (this model yields a validation MSE of 0.7705384 and a test MSE of 0.7779192). Therefore, in order to justify the existence of our more sophisticated models, we want them to give a much lower MSE.
+
+How low we want to push down the MSE for us to be satisfied with our models is a difficult question and depends on how are models are supposed to be used. We believe a resonable purpose for our models is to act as a tool for beverage stores when they decide which wine they should keep in stock. However, it is still difficult to define how low the MSE should be for us to be content: When one is for example constructing a bridge, one will probably want the prediction of the target value to be precise enough so the probability of the bridge collapsing is negligent. In our case, our regression models can not really be said to have such a clear goal: We can basically only tell if one given model is better than another given model, not if they are good enough in an absolute sense.
+
+Given the discussion above, any quantitative measure of how much we want to reduce our test MSE is completely arbitrary. However, we pretend that the marketing department of the beverage store has demanded that the test MSE of a sufficient model should be 50% lower than the test MSE of our basline model, such a reduction in MSE would let the marketing department advertise our model as being "50% better than chance".
+
+In the classification subtask, our main interest is to have a high precision rate, intuitively because we seek to minimize the risk of someone intending to buy a good wine but actually getting a poor wine. We believe a 90% precision rate is sufficiently high for this purpose.
+
+
+#2. DATA CLEANING
+
+We downloaded the data set from the UCI Machine Learning Repository [link]( https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of wine with different colours may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
+
+The data set did not contain any unknown values. Initially, we did not search for any outliers but after having constructed a few models, we noticed that our validation MSE was systematically lower than our training MSE. When this was noticed, we tried to resplit our data into training, validation and test sets a few times, however the pecularity of obtaining lower validation MSE than training MSE was present for most of the splits. The pecularity was especially pronounced for the simpler models. This lead us to believe that there were outliers present in our data: We believe that having outliers present in the training data will not affect the overall behavior of simpler models but will push up the training MSE highly for these models (since the prediction for the outliers will be far off).
+
+We searched for outliers (i.e. observations deviating extremely) by examining the Euclidean norm of the attributes of the observations:
+
+```{r}
+require(scales)
 wine <- cbind(as.data.frame(scale(wine[,-12],center = TRUE)),quality=wine[,12])
 euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wine[,7]^2+wine[,8]^2+wine[,9]^2+wine[,10]^2+wine[,11]^2)
-plot(sort(euc),type="l")
+plot(sort(euc),type="l", xlab = "Sorted index", ylab = "Euclidean norm")
 sorted<-sort(euc, index.return = TRUE)$ix
 wine<-wine[-sorted[c(1:80,(length(sorted)-200):length(sorted))],]
 euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wine[,7]^2+wine[,8]^2+wine[,9]^2+wine[,10]^2+wine[,11]^2)
-lines(y=sort(euc),x=51:(nrow(wine)+50),col="red",lw=4)
+lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
+```
 
+The black line shows the Euclidean norm of all of the observations in the wine data set, ranging from the one with the lowest norm to the one with the highest. Since there are clearly a few observations deviating extremely in terms of their Euclidean norm, we chose to remove these observations and only keep the line segment marked in red. The following histogram shows the quality distribution of the removed observations:
 
-#TODO change split ratio 
+```{r}
+hist(wine$quality[sorted[c(1:80, (length(sorted)-200):length(sorted))]], col = "red", main = "Removed data", xlab = "Quality")
+```
+
+The histogram shows that the removed observations did not come from any particular quality class (they are distributed similarly to the training data set).
+
+RUBRIK
+
+The wine data set was split into training, validation and test sets by doing a random 64-16-20 split while preserving relative ratios of different labels of the target variable (note that this split is done by first doing a 80-20 split into a combined training-validation set and test set, followed by a 80-20 split of the combined training-validation set). For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
+
+```{r}
 library(caTools)
 set.seed(24)
-s <- sample.split(Y = wine$quality,SplitRatio = 0.9)
+s <- sample.split(Y = wine$quality,SplitRatio = 0.8)
 test <- wine[s==FALSE,]
 temp <-wine[s==TRUE,]
-s <- sample.split(Y = temp$quality,SplitRatio = 0.7)
+s <- sample.split(Y = temp$quality,SplitRatio = 0.8)
 validation <- temp[s==FALSE,]
 train <- temp[s==TRUE,]
+```
 
+#3 & 4. FEATURE IMPORTANCE SCORES / PCA
+
+We used PCA to find the successive orthogonal directions of maximum variance:
+
+```{r}
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
+PCA$sdev
+```
+
+Intuitively PCA defines a set of new base vectors of our data (corresponding to a rotation) and also gives the standard deviations of our data in these directions, the idea is to keep the directions of high variance since these are assumed to be the most informative (at least given a linear relation between the attrbiutes and the target variable).
+
+Since the standard deviations decrease quite slowly without any sharp decline, except for the step from the 10th to the 11th principle component, there is not any natural cut-off point for how many principle components we should choose. We therefore choose to express our data using the first i principle components, for every i from 1 to 11, and create a new data frame for each such transformation.
+
+We also create new data frames where we have projected our original data onto 2nd and 3rd order polynomials, note that these polynomials contain 11 variables and thus have a lot of cross terms. We do not project onto polynomials of higher order because of computational limitations, and we do not believe that such polynomials would yield better models since they would most likely overfit to the training data. When we create models, we will simultaneously create a given model (for example linear regression) for all of these data frames.
+
+```{r}
 #Create data set with diffrent attribute
 trainPoly<-lapply(2:3,function(x){
   foo<- with(train,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
@@ -95,43 +141,11 @@ dataSets<- list(normal=list(train=train,validation=validation),
                 pca2=list(train=PCA.train[,c(1:2,12)],validation=PCA.validation[[2]]),
                 pca1=list(train=PCA.train[,c(1,12)],validation=PCA.validation[[1]]))
                 
-dataSets$normal$validation$quality=NULL              
-MSE <- function(x,y){
-  mean((x - y)^2)}
-
-
-linear.mse <- lapply(dataSets, function(x){
-  model<-lm(quality~.,data=as.data.frame(x$train))
-  pred<-predict(model,as.data.frame(x$validation))
-  list(validationMSE=MSE(pred,validation[12]),
-  trainMSE=mean(model$residuals^2))
-})
-
-require(lars)
-
-lasso.models <- lapply( dataSets, function(x){
-  foo<-as.data.frame(x$train)
-  bar<- as.data.frame(x$validation)
-  m<-as.matrix(foo[-ncol(foo)])
-  models<-lars(x = m, y = as.numeric(foo$quality), type = "lasso")
-  pred<-predict(models, as.matrix(as.data.frame(bar)))
-  mse<-sapply(1:ncol(pred$fit),function(x){MSE(pred$fit[,x],validation$quality)})
-  names(x)=list(models=models,mse=mse)
-})
-
+dataSets$normal$validation$quality=NULL
 ```
 
-```{r}
-euc <- sqrt(train[,1]^2+train[,2]^2+train[,3]^2+train[,4]^2+train[,5]^2+train[,6]^2+train[,7]^2+train[,8]^2+train[,9]^2+train[,10]^2+train[,11]^2)
+We examine the linear dependency between the attributes and return those who are most linearly dependent (those with largest absolute value of correlation):
 
-sort(euc)
-
-# ta bort fem sista?
-```
-
-#3 & 4. FEATURE IMPORTANCE SCORES / PCA
-
-CORRELATION MATRIX - LISTA
 ```{r}
 #cor
 cor_wine<-cor(train)
@@ -143,7 +157,12 @@ colnames(df_wine)<- c("Var1","Var2","Cor")
 df_wine[1:10,]
 ```
 
-Mutual information criterion!
+If we were to remove some features, it would be reasonable to remove for example residual.sugar and total.sulfur.dioxide since density already provides information about these attributes.
+
+KOMMENTAR.
+
+We also examine the mutual information criterion:
+
 ```{r}
 #Shared information
 require(plyr)
@@ -159,38 +178,40 @@ mi <- sapply(cn,my_fun)
 sort(mi,decreasing = TRUE)
 ```
 
-
-The correlation matrix shows the linear dependence between all of the variables. If we were to remove some features, entries in the correlation matrix having large absolute value would determine pairs of variables of which one could be removed. However, since we value model accuracy over model simplicity, we choose to not remove any attributes.
-
-We used PCA to find the directions of maximum variance (orthogonal?). The 11th principle component showed a sharp decline in standard deviation, we therefore choose to create a transformation of our original data set where our data is expressed using only the ten first principle components. We will use both the original data set and the PCA transformed data set when constructing models, and then compare these models to each other.
-
-```{r}
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
-PCA$sdev
-```
-
-(Target audience / Expert opinions?)
+The fact that density has the highest mutual information criterion intuitively matches our results about the linear dependency of the attributes: By using the linear dependencies, knowing the density of wine provides us with information about its residual.sugar, alcohol and total.sulfur.dioxide values. Knowing four attributes, we most likely have a higher probability of knowing the quality of the wine than if we only know one attribute.
 
 #5. MODELS
 
 ##5.1 REGRESSION
 
-To get an MSE to compare our models’ performance with, we calculate the validation MSE obtained by simply guessing the mean quality of the training data, we call this MSE our baseline error. We except our other models to perform much better than this baseline model.
+```{r}
+MSE <- function(x,y){
+  mean((x - y)^2)}
+```
 
-Regression:
-
-The first model we construct is simply to linearly regress quality on all of the attributes:
+The first model we construct is simply linear regression:
 
 ```{r}
-MSE <- function(x,y)
-  {mean((x - y)^2)}
+linear.mse <- lapply(dataSets, function(x){
+  model<-lm(quality~.,data=as.data.frame(x$train))
+  pred<-predict(model,as.data.frame(x$validation))
+  list(validationMSE=MSE(pred,validation[12]),
+  trainMSE=mean(model$residuals^2))
+})
 ```
 
 ```{r}
-lin.model1 <- lm(quality ~ ., data = train)
-summary(lin.model1)
-lin.pred1 <- predict(lin.model1, newdata = validation)
-MSE(lin.pred1, validation[,12])
+require(lars)
+
+lasso.models <- lapply( dataSets, function(x){
+  foo<-as.data.frame(x$train)
+  bar<- as.data.frame(x$validation)
+  m<-as.matrix(foo[-ncol(foo)])
+  models<-lars(x = m, y = as.numeric(foo$quality), type = "lasso")
+  pred<-predict(models, as.matrix(as.data.frame(bar)))
+  mse<-sapply(1:ncol(pred$fit),function(x){MSE(pred$fit[,x],validation$quality)})
+  names(x)=list(models=models,mse=mse)
+})
 ```
 
 The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
@@ -327,7 +348,7 @@ plot(x=n,y=mse.validation,type="l",col="blue",ylim=c(min(mse.train),min(c(2,max(
 lines(x=n,y=mse.train,type="l", col="red")
 ```
 
-The fact that the linear coefficents do not quickly shrink towards zero even when we penalize their absolute value further reinforces our argument for not removing attributes.
+The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our argument for not removing attributes.
 
 ```{r}
 # thin plate spline
@@ -433,41 +454,56 @@ min(rf.mse.PCA)
 loc.reg <- loess(quality ~ ., data = PCA.train, degree = 1)
 loc.reg.mse <- MSE(predict(loc.reg, newdata = PCA.validation)[-1285], validation[-1285,12])
 
-# k <- 30
-local.regression <- function(k){
+distance.fct <- function(){
 
-pred <- c()
+  distlist <- list()
+  for (i in 1:length(validation[,1])){
 
-for (i in 1:length(validation[,1])){
+    distance <- c()
+    for (j in 1:length(train[,1])){
+      distance[j] <- sum((validation[i,-12] - train[j,-12])^2)}
 
-  distance <- c()
-  for (j in 1:length(train[,1])){
-    distance[j] <- sum((validation[i,-12] - train[j,-12])^2)}
-
-  closest.x <- sort(distance, index.return=TRUE)$ix[1:k]
-  df <- data.frame(train[closest.x,])
-
-  loc.poly <- lm(quality ~ poly(fixed.acidity, volatile.acidity, citric.acid, residual.sugar,
-  chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol, degree
-  = 1, raw = TRUE), data = df)
-
-  pred[i] <- (loc.poly$coefficients[1] + loc.poly$coefficients[2]*validation[i,1] +
-  loc.poly$coefficients[3]*validation[i,2] + loc.poly$coefficients[4]*validation[i,3] + 
-  loc.poly$coefficients[5]*validation[i,4] + loc.poly$coefficients[6]*validation[i,5] +
-  loc.poly$coefficients[7]*validation[i,6] + loc.poly$coefficients[8]*validation[i,7] +
-  loc.poly$coefficients[9]*validation[i,8] + loc.poly$coefficients[10]*validation[i,9] +
-  loc.poly$coefficients[11]*validation[i,10] + loc.poly$coefficients[12]*validation[i,11])
+    distlist[[i]] <- distance
+    print(i/length(validation[,1]))}
   
-  print(i/length(validation[,1]))}
+  write.table(distlist, file = "distlist.txt", row.names = FALSE, col.names = FALSE)}
 
-write.table(pred, file = "pred.txt", row.names = FALSE, col.names = FALSE, na = "NA")
+distlist <- read.table("distlist.txt")
 
-remove <- which(is.na(pred))
+local.regression <- function(k, d){
+  
+  pred <- c()
+  
+  for (i in 1:length(validation[,1])){
+  
+    distance <- distlist[[i]]
+    closest.x <- sort(distance, index.return=TRUE)$ix[1:k]
+    df <- data.frame(train[closest.x,])
 
-if (is.na(remove[1])) {mse.loc.reg <- MSE(pred, validation[,12])}
-if (is.na(remove[1]) == FALSE) {mse.loc.reg <- MSE(pred[-remove], validation[-remove,12])}
+    loc.poly <- lm(quality ~ poly(fixed.acidity, volatile.acidity, citric.acid, residual.sugar,
+    chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol, degree
+    = d, raw = TRUE), data = df)
+
+    pred[i] <- (loc.poly$coefficients[1] + loc.poly$coefficients[2]*validation[i,1] +
+    loc.poly$coefficients[3]*validation[i,2] + loc.poly$coefficients[4]*validation[i,3] + 
+    loc.poly$coefficients[5]*validation[i,4] + loc.poly$coefficients[6]*validation[i,5] +
+    loc.poly$coefficients[7]*validation[i,6] + loc.poly$coefficients[8]*validation[i,7] +
+    loc.poly$coefficients[9]*validation[i,8] + loc.poly$coefficients[10]*validation[i,9] +
+    loc.poly$coefficients[11]*validation[i,10] + loc.poly$coefficients[12]*validation[i,11])}
+
+  remove <- which(is.na(pred))
+
+  if (is.na(remove[1])) {mse.loc.reg <- MSE(pred, validation[,12])}
+  if (is.na(remove[1]) == FALSE) {mse.loc.reg <- MSE(pred[-remove], validation[-remove,12])}
 
 return(list(mse.loc.reg))}
+
+test <- matrix(ncol = 2, nrow = 490)
+for (i in seq(30,500, 20)) {
+  
+  for (j in c(1,2)) {
+    test[i,j] <- local.regression(i, j)[[1]]}}
+
 ```
 
 ##5.2 CLASSIFICATION
