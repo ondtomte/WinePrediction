@@ -51,6 +51,7 @@ We searched for outliers (i.e. observations deviating extremely) by examining th
 ```{r}
 require(scales)
 wine <- cbind(as.data.frame(scale(wine[,-12],center = TRUE)),quality=wine[,12])
+wine2 <- wine
 euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wine[,7]^2+wine[,8]^2+wine[,9]^2+wine[,10]^2+wine[,11]^2)
 plot(sort(euc),type="l", xlab = "Sorted index", ylab = "Euclidean norm")
 sorted<-sort(euc, index.return = TRUE)$ix
@@ -62,7 +63,7 @@ lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
 The black line shows the Euclidean norm of all of the observations in the wine data set, ranging from the one with the lowest norm to the one with the highest. Since there are clearly a few observations deviating extremely in terms of their Euclidean norm, we chose to remove these observations and only keep the line segment marked in red. The following histogram shows the quality distribution of the removed observations:
 
 ```{r}
-hist(wine$quality[sorted[c(1:80, (length(sorted)-200):length(sorted))]], col = "red", main = "Removed data", xlab = "Quality")
+hist(wine2$quality[sorted[c(1:80, (length(sorted)-200):length(sorted))]], col = "red", main = "Removed data", xlab = "Quality")
 ```
 
 The histogram shows that the removed observations did not come from any particular quality class (they are distributed similarly to the training data set).
@@ -193,12 +194,18 @@ The first model we construct is simply linear regression:
 
 ```{r}
 linear.mse <- lapply(dataSets, function(x){
-  model<-lm(quality~.,data=as.data.frame(x$train))
+  model<-glm(quality~.,data=as.data.frame(x$train))
   pred<-predict(model,as.data.frame(x$validation))
+  cv<-cv.glm(as.data.frame(x$train), model, K = 5)
   list(validationMSE=MSE(pred,validation[12]),
-  trainMSE=mean(model$residuals^2))
+  trainMSE=mean(model$residuals^2),
+  trainCV=cv$delta)
 })
 ```
+
+The difference in validation MSE between the best models is quite small, but polynomial regression of degree 2 performs best. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are relevant (it can also be noted that using all PCA components gives the same result as performing linear regression on the original data, as expected).
+
+We now construct a set of lasso models:
 
 ```{r}
 require(lars)
@@ -208,9 +215,10 @@ lasso.models <- lapply( dataSets, function(x){
   bar<- as.data.frame(x$validation)
   m<-as.matrix(foo[-ncol(foo)])
   models<-lars(x = m, y = as.numeric(foo$quality), type = "lasso")
+  #cv<-cv.lars(x = m, y = as.numeric(foo$quality), type = "lasso", plot.it = FALSE, K = 5)
   pred<-predict(models, as.matrix(as.data.frame(bar)))
   mse<-sapply(1:ncol(pred$fit),function(x){MSE(pred$fit[,x],validation$quality)})
-  names(x)=list(models=models,mse=mse)
+  names(x)=list(validationMSE=mse)
 })
 ```
 
