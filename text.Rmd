@@ -189,7 +189,16 @@ MSE <- function(x,y){
   mean((x - y)^2)}
 ```
 
-The first model we construct is simply linear regression:
+We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting our data shows a slight such tendency):
+
+```{r}
+lm.ind <- list()
+for (i in 1:11) {
+  model<-lm(as.formula(paste("quality~", names(train)[i])),train)
+  pred<-predict(model,validation)
+  lm.ind[[names(train)[i]]] <- list(validationMSE=MSE(pred,validation[12]),
+  trainMSE=mean(model$residuals^2))}
+```
 
 ```{r}
 linear.mse <- lapply(dataSets, function(x){
@@ -204,7 +213,7 @@ linear.mse <- lapply(dataSets, function(x){
 
 The difference in validation MSE between the best models is quite small, but polynomial regression of degree 2 performs best. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are relevant (it can also be noted that using all PCA components gives the same result as performing linear regression on the original data, as expected).
 
-We now construct a set of lasso models:
+We also construct a set of lasso models, these models give a penalty on the absolute value of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
 
 ```{r}
 require(lars)
@@ -248,32 +257,11 @@ lapply(dataSets,function(x){
 
 ```
 
-The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
+The lasso models corresponding to polynomial regression of degree 3 gave the lowest MSE. This can actually be said to match the results from our ordinary linear models: Lasso regression on the poly3 data approximately corresponds to successively removing terms from the fitted 3rd order polynomial. Since polynomial regression of degree 2 gave the best linear model, and polynomial regression of degree 3 gave the second best, it seems reasonable to find an even better polynomial fit if we let the degree of the polynomial "lie between" 2 and 3.
 
-```{r}
-plot(train$density, train$quality)
-```
+For the untransformed data, the more attributes that were removed the higher the MSE became. This fact indicates all of the attributes are relevant.
 
-The only relationship which seems clear is a slight negative linear tendency, we therefore regress quality on density linearly:
-
-```{r}
-lin.model2 <- lm(quality ~ density, data = train)
-lin.pred2 <- predict(lin.model2, newdata = validation)
-MSE(lin.pred2, validation[,12])
-```
-
-We also construct a set of lasso models, these models give a penalty on the square of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
-
-```{r}
-require(lars)
-lasso.models <-lars(x = as.matrix(train[,-12]), y = as.vector(train[,12]), type = "lasso")
-plot(lasso.models)
-
-lasso.mse <- sapply(1:14,function(x){MSE(predict(lasso.models,as.matrix(validation[,-12]))$fit[,x], validation[,12])})
-plot(x=1:14,y=lasso.mse,xlab="Model")
-```
-
-The more attributes that were removed, the higher the MSE became, this fact supports our argument for keeping most of our attributes. Moreover, we also constructed ridge models which penalize the absolute value of the linear coefficients and similar results were observed for these models:
+Moreover, we also construct ridge models which penalize the absolute value of the linear coefficients:
 
 ```{r}
 library(MASS)
@@ -341,7 +329,7 @@ plot(x=n,y=mse.validation,type="l",col="blue",ylim=c(min(mse.train),min(c(2,max(
 lines(x=n,y=mse.train,type="l", col="red")
 ```
 
-The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our argument for not removing attributes.
+The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our belief that we should not remove attributes.
 
 ```{r}
 # thin plate spline
