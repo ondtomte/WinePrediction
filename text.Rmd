@@ -24,7 +24,6 @@ Our task is thus to investigate how different chemical levels affect the quality
 Regarding the accuracy of the different subtasks:
 
 In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model consists of simply guessing the mean quality of the training.
-
 ```{r}
 hist(train$quality,col = "red",main = "Training", xlab = "Quality")
 ```
@@ -211,15 +210,42 @@ We now construct a set of lasso models:
 require(lars)
 
 lasso.models <- lapply( dataSets, function(x){
-  foo<-as.data.frame(x$train)
-  bar<- as.data.frame(x$validation)
-  m<-as.matrix(foo[-ncol(foo)])
-  models<-lars(x = m, y = as.numeric(foo$quality), type = "lasso")
-  #cv<-cv.lars(x = m, y = as.numeric(foo$quality), type = "lasso", plot.it = FALSE, K = 5)
-  pred<-predict(models, as.matrix(as.data.frame(bar)))
+  t<-as.data.frame(x$train)
+  v<- as.data.frame(x$validation)
+  m<-as.matrix(t[-ncol(t)])
+  models<-lars(x = m, y = as.numeric(t$quality), type = "lasso")
+  
+  cv<-cv.lars(x = m, y = as.numeric(t$quality), type = "lasso", plot.it = FALSE, K = 5)
+  pred<-predict(models, as.matrix(v))
   mse<-sapply(1:ncol(pred$fit),function(x){MSE(pred$fit[,x],validation$quality)})
-  names(x)=list(validationMSE=mse)
+  x=list(validationMSE=mse,CV=cv, model=models)
 })
+```
+
+```{r}
+p<-sapply(lasso.models, function(x){min(x$validationMSE)})
+barplot(p,las=2,main="Best Lasso model",ylab = "Validation MSE")
+```
+
+```{r}
+sum(coef(lasso.models$poly3$model)[which.min(lasso.models$poly3$validationMSE),]>0)
+ncol(coef(lasso.models$poly3$model))
+```
+
+```{r}
+lambda<-c(0,lasso.models$poly3$model$lambda)
+lambda<-sort(lambda)
+plot(x=lambda,y=lasso.models$poly3$validationMSE,type="l",xlab=expression(lambda),ylab="Validation MSE", main="Lasso Poly3")
+```
+
+Ridge regression
+```{r}
+library(MASS)
+lapply(dataSets,function(x){
+  lm.ridge(quality~.,data=x$train)
+})
+
+
 ```
 
 The highest mutual information between the target variable and the attributes was observed for the attribute density, therefore it seems reasonable to try to construct a model where we predict quality using only density. The plot below shows the relationship between density and quality:
