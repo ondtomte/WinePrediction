@@ -186,7 +186,7 @@ The fact that density has the highest mutual information criterion intuitively m
 
 ```{r}
 MSE <- function(x,y){
-  mean((x - y)^2)}
+  mean((x - y)^2, na.rm = TRUE)}
 ```
 
 We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting the data shows a slight such tendency):
@@ -386,47 +386,30 @@ distMatrix=function(N,M){
   sqrt(eM%*%t(N^2)-2*M%*%t(N)+M^2%*%t(eN))
 }
 
-dd<-distMatrix(as.matrix(train[-12]),as.matrix(validation[-12]))
+temp.dataSets <- dataSets
+temp.dataSets$pca1 <- NULL
 
-local.regression <- function(k, d){
-  
+loc.reg.mse <- lapply(temp.dataSets, function(x){
+# PCA1
+  matrix <- as.matrix(as.data.frame(x$train))
+  distance<-distMatrix(matrix[,-ncol(matrix)],as.matrix(as.data.frame(x$validation)))
   pred <- c()
-  
-  for (i in 1:nrow(validation)){
-  
-    distance <- dd[i,]
-    closest.x <- sort(distance, index.return=TRUE)$ix[1:k]
-    df <- data.frame(train[closest.x,])
+  validationMSE <- c()
+  for (r in seq(30, 90, 30)){
+    for(i in 1:nrow(validation)){
+      n<-sort(distance[i,],index.return = TRUE)$ix[1:r]
+      mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
+      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])}
+      validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
+  list(validationMSE=validationMSE)
+})
 
-    loc.poly <- lm(quality ~ poly(fixed.acidity, volatile.acidity, citric.acid, residual.sugar,
-    chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol, degree
-    = d, raw = TRUE), data = df)
+plot(c(30,60,90), loc.reg.mse$normal$validationMSE, type = "l", xlab = "Number of neighbors", ylab = "validation MSE", col = 6, xlim = c(30, 100))
+for (i in 2:11){
+  lines(c(30,60,90), loc.reg.mse[[i]]$validationMSE, col = i + 5)}
 
-    pred[i] <- (loc.poly$coefficients[1] + loc.poly$coefficients[2]*validation[i,1] +
-    loc.poly$coefficients[3]*validation[i,2] + loc.poly$coefficients[4]*validation[i,3] + 
-    loc.poly$coefficients[5]*validation[i,4] + loc.poly$coefficients[6]*validation[i,5] +
-    loc.poly$coefficients[7]*validation[i,6] + loc.poly$coefficients[8]*validation[i,7] +
-    loc.poly$coefficients[9]*validation[i,8] + loc.poly$coefficients[10]*validation[i,9] +
-    loc.poly$coefficients[11]*validation[i,10] + loc.poly$coefficients[12]*validation[i,11])}
+legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2"), col=seq(6,16), lty=1, cex = 0.5)
 
-  remove <- which(is.na(pred))
-
-  if (is.na(remove[1])) {validationMSE <- MSE(pred, validation[,12])
-  } else if (is.na(remove[1]) == FALSE) {validationMSE <- MSE(pred[-remove], validation[-remove,12])}
-
-return(list(validationMSE))}
-
-
-mse<-c()
-for(r in seq(50,200,by=50)){
-  pred<-c()
-  for(i in 1:nrow(validation)){
-    n<- sort(dd[i,],index.return = TRUE)$ix[1:r]
-    mod<-lm(quality~.,data=train[n,])
-    pred<-c(pred,predict(mod,newdata=validation[i,]))
-  }
-  mse<-c(mse,MSE(pred,validation$quality))
-}
 
 ```
 
@@ -519,37 +502,14 @@ View(df[order(as.numeric(df$validationError)),])
 
 
 ```{r}
-  
 require(randomForest)
-
-rf.class <- randomForest(binary.quality ~ ., data = train, ntree = 30)
-rf.class.tuned <- randomForest(binary.quality ~ ., data = train, ntree = which.min(rf.class$err.rate[,1]))
-pred <- predict(rf.class.tuned, validation[,-12])
-rf.mce <- MCE(pred, validation[,12])
-
-# PCA RF CLASS
-
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
-
-rf.mce.PCA <- c()
-
-for (i in 1:2){
-  if (i == 1){
-    PCA.train <- cbind(data.frame(PC1 = PCA$x[,1:i]), binary.quality = train[,12])
-  } else {
-    PCA.train <- cbind(as.data.frame(PCA$x[,1:i]), binary.quality = train[,12])
-  }
-  rf.class <- randomForest(binary.quality ~ ., data = PCA.train, ntree = 30)
-  rf.class.tuned <- randomForest(binary.quality ~ ., data = PCA.train, ntree =   which.min(rf.class$err.rate[,1]))
-  
-  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
-  PCA.validation <- data.frame(PC1 = PCA.validation)
-  } else {PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
-                                             PCA$rotation)[,1:i])}
-  
-  pred <- predict(rf.class.tuned, PCA.validation)
-  rf.mce.PCA[i] <- MCE(pred, validation[,12])}
-
+rf <- lapply(dataSets, function(x){
+  model<-randomForest(binary.quality ~ ., data=as.data.frame(x$train), ntree = 30)
+  tuned.model <- randomForest(binary.quality ~ ., data=as.data.frame(x$train), ntree =
+                                which.min(model$err.rate[,1]))
+  pred<-predict(model,as.data.frame(x$validation))
+  list(validationMCE=MCE(pred,validation[12]))
+})
 ```
 
 ```{r}
