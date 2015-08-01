@@ -423,16 +423,13 @@ MCE <- function(x, y)
 ```{r}
 validation$binary.quality <- validation$quality >= 6
 validation$quality=NULL
+validation$binary.quality<-as.factor(validation$binary.quality)
 
 for(i in 1:length(dataSets)){
   dataSets[[i]]$train$binary.quality<-(dataSets[[i]]$train$quality>GOOD_WINE)
   dataSets[[i]]$train$binary.quality<-as.factor(dataSets[[i]]$train$binary.quality)
   dataSets[[i]]$train$quality<-NULL
 }
-
-train$binary.quality<- as.factor(train$binary.quality)
-validation$binary.quality<-as.factor(validation$binary.quality)
-test$binary.quality<- as.factor(test$binary.quality)
 
 baseline.misclass <- MCE(TRUE, validation$binary.quality)
 baseline.misclass
@@ -512,76 +509,57 @@ View(df[order(as.numeric(df$validationError)),])
 ```{r}
 require(randomForest)
 rf <- lapply(dataSets, function(x){
-  model<-randomForest(binary.quality ~ ., data=as.data.frame(x$train), ntree = 30)
-  tuned.model <- randomForest(binary.quality ~ ., data=as.data.frame(x$train), ntree =
+  model<-randomForest(binary.quality ~ ., x$train, ntree = 30)
+  tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
                                 which.min(model$err.rate[,1]))
-  pred<-predict(model,as.data.frame(x$validation))
-  list(validationMCE=MCE(pred,validation[12]))
+  pred<-predict(tuned.model,as.data.frame(x$validation))
+  list(validationMCE=MCE(pred,validation$binary.quality))
 })
 ```
 
 ```{r}
-
 require(ada)
 
-adaboost <- ada(train[,1:11], train[,12], iter = 10)
-adaboost.tuned <- ada(train[,1:11], train[,12], iter = 5)
-pred <- predict(adaboost.tuned, validation[,-12])
-ada.mce <- MCE(pred, validation[,12])
+dataSets.new <- dataSets
+dataSets.new$pca1 <- NULL
 
+ada.models <- lapply(dataSets.new, function(x){
+  model<-ada(x$train[,1:ncol(x$train)-1], x$train[,ncol(x$train)], iter = 10)
+  # tune?
+  pred<-predict(model,x$validation)
+  list(validationMCE=MCE(pred,validation$binary.quality))
+})
 ```
 
 ```{r}
-
-# ^2 och ^3 ....
-for (i in seq(0,1, 0.1)){
-  log.reg <- glm(binary.quality ~ ., data = train, family = "binomial")
-  pred <- predict.glm(log.reg, newdata = validation, type = "response")
-  pred <- pred > i
-  mce.log.reg <- MCE(pred, validation$binary.quality)
-  print(mce.log.reg)}
-
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)  
-
-for (i in 1:11){
-  
-  if (i == 1){PCA.train <- cbind(data.frame(PC1 = PCA$x[,1:i]), binary.quality = train[,12])
-  } else {PCA.train <- cbind(as.data.frame(PCA$x[,1:i]), binary.quality = train[,12])}
-  
-  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
-  PCA.validation <- data.frame(PC1 = PCA.validation)
-  } else {PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
-                                             PCA$rotation)[,1:i])}
-  
-  log.reg <- glm(binary.quality ~ ., data = PCA.train, family = "binomial")
-  pred <- predict.glm(log.reg, newdata = PCA.validation, type = "response")
-  pred <- pred > 0.5
-  print(MCE(pred, validation$binary.quality))}
-
 require(ROCR)
 
-log.reg <- glm(binary.quality ~ ., data = train, family = "binomial")
-pred <- predict.glm(log.reg, newdata = validation, type = "response")
+logistic.reg <- lapply(dataSets, function(x){
+model <- glm(binary.quality ~ ., data = x$train, family = "binomial")
+pred <- predict.glm(model, newdata = x$validation, type = "response")
 pred.rocr <- prediction(pred, validation$binary.quality)
+})
 
 # accuarcy
-acc <- performance(pred.rocr, "acc")
-plot(acc)
+plot(performance(logistic.reg$normal, "acc"), col = 6, xlim = c(0,1.2))
+for (i in 2:14){
+  lines(performance(logistic.reg[[i]], "acc")@x.values[[1]], performance(logistic.reg[[i]], "acc")@y.values[[1]], col = i + 5)}
+
+legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2", "PCA1"), col=seq(6,14), lty=1, cex = 0.5)
+
 
 # precision
-prec <- performance(pred.rocr, "ppv")
-plot(prec)
+plot(performance(logistic.reg$normal, "ppv"), col = 6, xlim = c(0,1.2))
+for (i in 2:14){
+  lines(performance(logistic.reg[[i]], "ppv")@x.values[[1]], performance(logistic.reg[[i]], "acc")@y.values[[1]], col = i + 5)}
 
-# recall
-rec <- performance(pred.rocr, "tpr")
-plot(rec)
+legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2", "PCA1"), col=seq(6,14), lty=1, cex = 0.5)
 
-tot <- as.vector(acc@y.values)[[1]] + as.vector(prec@y.values)[[1]] + as.vector(rec@y.values)[[1]]
-plot(as.vector(acc@x.values)[[1]], tot)
+# precision
+plot(performance(logistic.reg$normal, "tpr"), col = 6, xlim = c(0,1.2))
+for (i in 2:14){
+  lines(performance(logistic.reg[[i]], "tpr")@x.values[[1]], performance(logistic.reg[[i]], "acc")@y.values[[1]], col = i + 5)}
 
-for (i in 1:15){
-  tot <- as.vector(acc@y.values)[[1]] + i * as.vector(prec@y.values)[[1]] + as.vector(rec@y.values)[[1]]
-  plot(as.vector(acc@x.values)[[1]], tot)
-}
+legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2", "PCA1"), col=seq(6,14), lty=1, cex = 0.5)
 
 ```
