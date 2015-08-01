@@ -9,7 +9,7 @@ output: html_document
 
 For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
 
-```{r,cache=TRUE}
+```{r}
 #download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wine-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
 wine<-read.csv("winequality-white.csv",sep=";")
 str(wine)
@@ -24,7 +24,7 @@ Our task is thus to investigate how different chemical levels affect the quality
 Regarding the accuracy of the different subtasks:
 
 In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model consists of simply guessing the mean quality of the training.
-```{r,cache=TRUE}
+```{r}
 hist(train$quality,col = "red",main = "Training", xlab = "Quality")
 ```
 
