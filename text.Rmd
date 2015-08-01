@@ -128,19 +128,19 @@ PCA.validation<-lapply(1:11, function(i){
 PCA.train<-as.data.frame(cbind(PCA$x,quality=train$quality))
 
 dataSets<- list(normal=list(train=train,validation=validation),
-                poly2=list(train=trainPoly[[1]],validation=validationPoly[[1]]),
-                poly3=list(train=trainPoly[[2]],validation=validationPoly[[2]]),
-                pca=list(train=PCA.train,validation=PCA.validation[[11]]),
-                pca10=list(train=PCA.train[,c(1:10,12)],validation=PCA.validation[[10]]),
-                pca9=list(train=PCA.train[,c(1:9,12)],validation=PCA.validation[[9]]),
-                pca8=list(train=PCA.train[,c(1:8,12)],validation=PCA.validation[[8]]),
-                pca7=list(train=PCA.train[,c(1:7,12)],validation=PCA.validation[[7]]),
-                pca6=list(train=PCA.train[,c(1:6,12)],validation=PCA.validation[[6]]),
-                pca5=list(train=PCA.train[,c(1:5,12)],validation=PCA.validation[[5]]),
-                pca4=list(train=PCA.train[,c(1:4,12)],validation=PCA.validation[[4]]),
-                pca3=list(train=PCA.train[,c(1:3,12)],validation=PCA.validation[[3]]),
-                pca2=list(train=PCA.train[,c(1:2,12)],validation=PCA.validation[[2]]),
-                pca1=list(train=PCA.train[,c(1,12)],validation=PCA.validation[[1]]))
+                poly2=list(train=as.data.frame(trainPoly[[1]]),validation=as.data.frame(validationPoly[[1]])),
+                poly3=list(train=as.data.frame(trainPoly[[2]]),validation=as.data.frame(validationPoly[[2]])),
+                pca=list(train=PCA.train,validation=as.data.frame(PCA.validation[[11]])),
+                pca10=list(train=PCA.train[,c(1:10,12)],validation=as.data.frame(PCA.validation[[10]])),
+                pca9=list(train=PCA.train[,c(1:9,12)],validation=as.data.frame(PCA.validation[[9]])),
+                pca8=list(train=PCA.train[,c(1:8,12)],validation=as.data.frame(PCA.validation[[8]])),
+                pca7=list(train=PCA.train[,c(1:7,12)],validation=as.data.frame(PCA.validation[[7]])),
+                pca6=list(train=PCA.train[,c(1:6,12)],validation=as.data.frame(PCA.validation[[6]])),
+                pca5=list(train=PCA.train[,c(1:5,12)],validation=as.data.frame(PCA.validation[[5]])),
+                pca4=list(train=PCA.train[,c(1:4,12)],validation=as.data.frame(PCA.validation[[4]])),
+                pca3=list(train=PCA.train[,c(1:3,12)],validation=as.data.frame(PCA.validation[[3]])),
+                pca2=list(train=PCA.train[,c(1:2,12)],validation=as.data.frame(PCA.validation[[2]])),
+                pca1=list(train=PCA.train[,c(1,12)],validation=as.data.frame(PCA.validation[[1]])))
                 
 dataSets$normal$validation$quality=NULL
 ```
@@ -208,7 +208,7 @@ We continue with more advanced linear models:
 ```{r}
 library(boot)
 linear.models <- lapply(dataSets, function(x){
-  model<-glm(quality~.,data=as.data.frame(x$train))
+  model<-glm(quality~.,data=x$train)
   pred<-predict(model,as.data.frame(x$validation))
   cv<-cv.glm(as.data.frame(x$train), model, K = 5)
   list(validationMSE=MSE(pred,validation[12]),
@@ -225,13 +225,11 @@ We also construct a set of lasso models, these models give a penalty on the abso
 require(lars)
 
 lasso.models <- lapply( dataSets, function(x){
-  t<-as.data.frame(x$train)
-  v<- as.data.frame(x$validation)
-  m<-as.matrix(t[-ncol(t)])
-  models<-lars(x = m, y = as.numeric(t$quality), type = "lasso")
+  m<-as.matrix(x$train[-ncol(x$train)])
+  models<-lars(x = m, y = as.numeric(x$train$quality), type = "lasso")
   
-  cv<-cv.lars(x = m, y = as.numeric(t$quality), type = "lasso", plot.it = FALSE, K = 5)
-  pred<-predict(models, as.matrix(v))
+  cv<-cv.lars(x = m, y = as.numeric(x$train$quality), type = "lasso", plot.it = FALSE, K = 5)
+  pred<-predict(models, as.matrix(x$validation))
   mse<-sapply(1:ncol(pred$fit),function(x){MSE(pred$fit[,x],validation$quality)})
   bestMse<-list(min=min(mse),bestLassoModel=which.min(mse))
   list(validationMSE=mse,CV=cv, model=models,bestMse=bestMse,bestMceValidation=mean((pred$fit[,bestMse$bestLassoModel]>GOOD_WINE)!=(validation$quality>GOOD_WINE)))
@@ -267,14 +265,11 @@ predict.ridge<-function(model,x,i){
 
 library(MASS)
 ridge.models<-lapply(dataSets[-14],function(x){
-  #x<- dataSets$poly2
-  t<-data.frame(x$train)
-  v<-data.frame(x$validation)
-  models<-lm.ridge(formula = quality~.,data=t,lambda = seq(0,1500,by=10))
-  predictionsValidation <- scale(v,center = models$xm,scale = models$scales)%*%models$coef +models$ym
+  models<-lm.ridge(formula = quality~.,data=x$train,lambda = seq(0,1500,by=10))
+  predictionsValidation <- scale(x$validation,center = models$xm,scale = models$scales)%*%models$coef +models$ym
   validationMSE <- apply(predictionsValidation,MARGIN=2,MSE,y=validation$quality)
   
-  predictionsTrain<-  scale(t[-ncol(t)],center = models$xm,scale = models$scales)%*%models$coef +models$ym
+  predictionsTrain<-  scale(x$train[-ncol(x$train)],center = models$xm,scale = models$scales)%*%models$coef +models$ym
   trainMSE<-apply(predictionsTrain,MARGIN=2,MSE,y=train$quality)
   
   bestRidgeModel<-list(bestMse=min(validationMSE),bestModel=which.min(validationMSE))
@@ -351,8 +346,8 @@ tps <- lapply(dataSets, function(x){
 ```{r}
 require(randomForest)
 rf <- lapply(dataSets, function(x){
-  model<-randomForest(quality ~ ., data=as.data.frame(x$train), ntree = 500)
-  tuned.model <- randomForest(quality ~ ., data=as.data.frame(x$train), ntree =
+  model<-randomForest(quality ~ ., data=x$train, ntree = 500)
+  tuned.model <- randomForest(quality ~ ., data=x$train, ntree =
                                 which.min(model$mse))
   pred<-predict(model,as.data.frame(x$validation))
   list(validationMSE=MSE(pred,validation[12]),trainMSE=tuned.model$mse[length(tuned.model$mse)])
@@ -426,15 +421,12 @@ MCE <- function(x, y)
 ```
 	
 ```{r}
-train$binary.quality <- train$quality >= 6
 validation$binary.quality <- validation$quality >= 6
-test$binary.quality <- test$quality >= 6
-train$quality=NULL
-test$quality=NULL
 validation$quality=NULL
 
 for(i in 1:length(dataSets)){
   dataSets[[i]]$train$binary.quality<-(dataSets[[i]]$train$quality>GOOD_WINE)
+  dataSets[[i]]$train$binary.quality<-as.factor(dataSets[[i]]$train$binary.quality)
   dataSets[[i]]$train$quality<-NULL
 }
 
@@ -449,7 +441,12 @@ baseline.misclass
 
 ```{r}
 require(FNN)
-wine.knn.misclass <- c()
+fnn.models<- lapply(dataSets,function(x){
+  wine.knn.misclass <- c()
+  sapply(1:50, function(k){
+    knn(train = x$train)
+  })
+})
 
 for(i in 1:25){
   wine.knn <- knn(train = train[,1:11], test = validation[,1:11], k = i, cl = train[,12])
