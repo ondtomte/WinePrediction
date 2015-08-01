@@ -249,10 +249,31 @@ plot(x=lambda,y=lasso.models$poly3$validationMSE,type="l",xlab=expression(lambda
 
 Ridge regression
 ```{r}
+predict.ridge<-function(model,x,i){
+  scale(x,center = model$xm,scale = model$scales)%*%model$coef[i,] +model$ym
+}
+
 library(MASS)
-lapply(dataSets,function(x){
-  lm.ridge(quality~.,data=x$train)
+ridge.mse<-lapply(dataSets[-14],function(x){
+  #x<- dataSets$poly2
+  t<-data.frame(x$train)
+  v<-data.frame(x$validation)
+  models<-lm.ridge(formula = quality~.,data=t,lambda = seq(0,1500,by=10))
+  predictions <- scale(v,center = models$xm,scale = models$scales)%*%models$coef +models$ym
+  validatioMSE <- apply(predictions,MARGIN=2,MSE,y=validation$quality)
+  
+  predictions<-  scale(t[-ncol(t)],center = models$xm,scale = models$scales)%*%models$coef +models$ym
+  trainMSE<-apply(predictions,MARGIN=2,MSE,y=train$quality)
+  list(trainMSE=trainMSE, validationMSE= validatioMSE, model=models)
 })
+plot(ridge.mse$poly3$trainMSE,type="l",ylim = c(0.35,0.58))
+lines(ridge.mse$poly3$validationMSE,type="l")
+
+plot(ridge.mse$poly2$trainMSE,type="l",ylim = c(min(ridge.mse$poly2$trainMSE),max(ridge.mse$poly2$validationMSE)))
+lines(ridge.mse$poly2$validationMSE,type="l")
+
+plot(ridge.mse$pca6$trainMSE,type="l",ylim = c(min(ridge.mse$pca6$trainMSE),max(ridge.mse$pca6$validationMSE)))
+lines(ridge.mse$pca6$validationMSE,type="l")
 
 
 ```
