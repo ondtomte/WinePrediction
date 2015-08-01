@@ -189,7 +189,7 @@ MSE <- function(x,y){
   mean((x - y)^2)}
 ```
 
-We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting our data shows a slight such tendency):
+We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting the data shows a slight such tendency):
 
 ```{r}
 lm.ind <- list()
@@ -199,6 +199,10 @@ for (i in 1:11) {
   lm.ind[[names(train)[i]]] <- list(validationMSE=MSE(pred,validation[12]),
   trainMSE=mean(model$residuals^2))}
 ```
+
+The models performed badly, the only model with descent performance was the alcohol model (note that alcohol occured frequently in the correlation scores).
+
+We continue with more advanced linear models:
 
 ```{r}
 linear.mse <- lapply(dataSets, function(x){
@@ -213,7 +217,7 @@ linear.mse <- lapply(dataSets, function(x){
 
 The difference in validation MSE between the best models is quite small, but polynomial regression of degree 2 performs best. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are relevant (it can also be noted that using all PCA components gives the same result as performing linear regression on the original data, as expected).
 
-We also construct a set of lasso models, these models give a penalty on the absolute value of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as lambda grows larger) and might thus give us information regarding if some of our attributes are redundant:
+We also construct a set of lasso models, these models give a penalty on the absolute value of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as $/lambda$ grows larger) and might also thus give us information regarding if some of our attributes are redundant:
 
 ```{r}
 require(lars)
@@ -231,6 +235,8 @@ lasso.models <- lapply( dataSets, function(x){
 })
 ```
 
+The lasso models corresponding to polynomial regression of degree 3 gave the lowest MSE. This can actually be said to match the results from our ordinary linear models: Lasso regression on the poly3 data approximately corresponds to successively removing terms from the fitted 3rd order polynomial. Since polynomial regression of degree 2 gave the best linear model, and polynomial regression of degree 3 gave the second best, it seems reasonable to find an even better polynomial fit if we let the degree of the polynomial "lie between" 2 and 3.
+
 ```{r}
 p<-sapply(lasso.models, function(x){min(x$validationMSE)})
 barplot(p,las=2,main="Best Lasso model",ylab = "Validation MSE")
@@ -247,7 +253,10 @@ lambda<-sort(lambda)
 plot(x=lambda,y=lasso.models$poly3$validationMSE,type="l",xlab=expression(lambda),ylab="Validation MSE", main="Lasso Poly3")
 ```
 
-Ridge regression
+For the untransformed data, the more attributes that were removed the higher the MSE became. This fact also indicates that all of the attributes are relevant.
+
+Moreover, we also construct ridge models which penalize the absolute value of the linear coefficients:
+
 ```{r}
 predict.ridge<-function(model,x,i){
   scale(x,center = model$xm,scale = model$scales)%*%model$coef[i,] +model$ym
@@ -278,11 +287,6 @@ lines(ridge.mse$pca6$validationMSE,type="l")
 
 ```
 
-The lasso models corresponding to polynomial regression of degree 3 gave the lowest MSE. This can actually be said to match the results from our ordinary linear models: Lasso regression on the poly3 data approximately corresponds to successively removing terms from the fitted 3rd order polynomial. Since polynomial regression of degree 2 gave the best linear model, and polynomial regression of degree 3 gave the second best, it seems reasonable to find an even better polynomial fit if we let the degree of the polynomial "lie between" 2 and 3.
-
-For the untransformed data, the more attributes that were removed the higher the MSE became. This fact indicates all of the attributes are relevant.
-
-Moreover, we also construct ridge models which penalize the absolute value of the linear coefficients:
 
 ```{r}
 library(MASS)
@@ -353,132 +357,44 @@ lines(x=n,y=mse.train,type="l", col="red")
 The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our belief that we should not remove attributes.
 
 ```{r}
-# thin plate spline
-  
-  d <- function(X,Y){
-    sqrt(sum((X - Y)^2))}
-  
-  f <- function(X,j){
-    if (d(X, train[j, 1:11]) > 0){(d(X, train[j, 1:11])^2)*log(d(X, train[j, 1:11]))}
-    else {0}}
-  
-  projections <- matrix(nrow = length(train[,1]), ncol = length(train[,1]))
-  
-#  for (i in 1:length(train[,1])){
-#    for (j in 1:length(train[,1])){
-#      projections[i,j] <- f(train[i, 1:11], j)
-#    }}
-  
-#  projections.data <- data.frame(cbind(projections, quality = train$quality))
-  
-#  ridge.model <- lm.ridge(quality ~ ., data = projections.data, lambda = 1)
-  
-#  ridge.betas <- coef(ridge.model)
-
-# applicera nedanstående funktion!
-
-  f.ridge <- function(X){
-    v <- c(ridge.betas[1])
-    for (i in 1:length(train[,1])){v[i+1] <- ridge.betas[i+1]*f(X,i)}
-    sum(v)}
-  
-#  new.vector <- c()
-#  for (i in 1:length(validation[,1])){
-#    new.vector[i] <- f.ridge(validation[i,1:11])}
-# slut thin plate spline
-```
-
-```{r}
 require(fields)
-
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE) 
-  
-thin.plate.PCA <- c()  
-for (i in 1:11){
-  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
-  PCA.validation <- as.matrix(data.frame(PC1 = PCA.validation))
-  } else {PCA.validation <- (as.matrix(validation[,-12]) %*% PCA$rotation)[,1:i]}
-  thin.plate <- Tps(PCA$x[,1:i], train[,12])
-  thin.plate.PCA[i] <- MSE(predict(thin.plate, x = PCA.validation), validation[,12])}
-
-for (i in c(0.001, 0.01, 0.1, 1, 5, 10)){
-PCA.validation <- (as.matrix(validation[,-12]) %*% PCA$rotation)[,1:5]
-thin.plate <- Tps(PCA$x[,1:5], train[,12], lambda = i)
-print(MSE(predict(thin.plate, x = PCA.validation), validation[,12]))}
-
+tps <- lapply(dataSets, function(x){
+  train <- as.matrix(as.data.frame(x$train))
+  model <- Tps(train[,-ncol(train)], as.data.frame(x$train)$quality, scale.type = "unscaled")
+  pred <- predict(model, x = as.matrix(as.data.frame(x$validation)))
+  list(validationMSE=MSE(pred,validation[12]),trainMSE=mean(model$residuals^2))
+})
 ```
 
 ```{r}
 require(randomForest)
-
-rf.reg1 <- randomForest(quality ~ ., data = train, ntree = 10)
-rf.reg1.tuned <- randomForest(quality ~ ., data = train, ntree = which.min(rf.reg1$mse))
-pred <- predict(rf.reg1.tuned, validation[,-12])
-rf.mse <- MSE(pred, validation[,12])
-rf.mse
-
-rf.reg2 <- randomForest(log(quality) ~ ., data = train, ntree = 20)
-rf.reg2.tuned <- randomForest(log(quality) ~ ., data = train, ntree = which.min(rf.reg2$mse))
-pred <- predict(rf.reg2.tuned, validation[,-12])
-rf.mse <- MSE(exp(pred), validation[,12])
-rf.mse
-
-# PCA RF
-
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
-
-rf.mse.PCA <- c()
-
-for (i in 1:11){
-
-  if (i == 1){
-    PCA.train <- as.data.frame(cbind(PC1 = PCA$x[,1:i], quality = train[,12]))
-  } else {
-    PCA.train <- as.data.frame(cbind(PCA$x[,1:i], quality = train[,12]))
-  }
-  rf.reg2 <- randomForest(log(quality) ~ .^3, data = PCA.train, ntree = 15)
-  rf.reg2.tuned <- randomForest(log(quality) ~ .^3, data = PCA.train, ntree = which.min(rf.reg2$mse))
-
-  if (i == 1){PCA.validation <- as.matrix(validation[,-12]) %*% PCA$rotation[,1:i]
-    PCA.validation <- data.frame(PC1 = PCA.validation)
-  } else {
-    PCA.validation <- as.data.frame((as.matrix(validation[,-12]) %*%
-    PCA$rotation)[,1:i])}
-
-  pred <- predict(rf.reg2.tuned, PCA.validation)
-  rf.mse.PCA[i] <- MSE(exp(pred), validation[,12])
-}
-plot(rf.mse.PCA)
-min(rf.mse.PCA)
+rf <- lapply(dataSets, function(x){
+  model<-randomForest(quality ~ ., data=as.data.frame(x$train), ntree = 500)
+  tuned.model <- randomForest(quality ~ ., data=as.data.frame(x$train), ntree =
+                                which.min(model$mse))
+  pred<-predict(model,as.data.frame(x$validation))
+  list(validationMSE=MSE(pred,validation[12]),trainMSE=tuned.model$mse[length(tuned.model$mse)])
+})
 ```
 
+LOG?
+
 ```{r}
-loc.reg <- loess(quality ~ ., data = PCA.train, degree = 1)
-loc.reg.mse <- MSE(predict(loc.reg, newdata = PCA.validation)[-1285], validation[-1285,12])
+distMatrix=function(N,M){
+  eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
+  eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
+  sqrt(eM%*%t(N^2)-2*M%*%t(N)+M^2%*%t(eN))
+}
 
-distance.fct <- function(){
-
-  distlist <- list()
-  for (i in 1:length(validation[,1])){
-
-    distance <- c()
-    for (j in 1:length(train[,1])){
-      distance[j] <- sum((validation[i,-12] - train[j,-12])^2)}
-
-    distlist[[i]] <- distance
-    print(i/length(validation[,1]))}
-  
-  write.table(distlist, file = "distlist.txt", row.names = FALSE, col.names = FALSE)}
-
-distlist <- read.table("distlist.txt")
+dd<-distMatrix(as.matrix(train[-12]),as.matrix(validation[-12]))
 
 local.regression <- function(k, d){
   
   pred <- c()
   
-  for (i in 1:length(validation[,1])){
+  for (i in 1:nrow(validation)){
   
-    distance <- distlist[[i]]
+    distance <- dd[i,]
     closest.x <- sort(distance, index.return=TRUE)$ix[1:k]
     df <- data.frame(train[closest.x,])
 
@@ -495,16 +411,22 @@ local.regression <- function(k, d){
 
   remove <- which(is.na(pred))
 
-  if (is.na(remove[1])) {mse.loc.reg <- MSE(pred, validation[,12])}
-  if (is.na(remove[1]) == FALSE) {mse.loc.reg <- MSE(pred[-remove], validation[-remove,12])}
+  if (is.na(remove[1])) {validationMSE <- MSE(pred, validation[,12])
+  } else if (is.na(remove[1]) == FALSE) {validationMSE <- MSE(pred[-remove], validation[-remove,12])}
 
-return(list(mse.loc.reg))}
+return(list(validationMSE))}
 
-test <- matrix(ncol = 2, nrow = 490)
-for (i in seq(30,500, 20)) {
-  
-  for (j in c(1,2)) {
-    test[i,j] <- local.regression(i, j)[[1]]}}
+
+mse<-c()
+for(r in seq(50,200,by=50)){
+  pred<-c()
+  for(i in 1:nrow(validation)){
+    n<- sort(dd[i,],index.return = TRUE)$ix[1:r]
+    mod<-lm(quality~.,data=train[n,])
+    pred<-c(pred,predict(mod,newdata=validation[i,]))
+  }
+  mse<-c(mse,MSE(pred,validation$quality))
+}
 
 ```
 
