@@ -130,7 +130,6 @@ PCA.train<-as.data.frame(cbind(PCA$x,quality=train$quality))
 dataSets<- list(normal=list(train=train,validation=validation),
                 poly2=list(train=as.data.frame(trainPoly[[1]]),validation=as.data.frame(validationPoly[[1]])),
                 poly3=list(train=as.data.frame(trainPoly[[2]]),validation=as.data.frame(validationPoly[[2]])),
-                pca=list(train=PCA.train,validation=as.data.frame(PCA.validation[[11]])),
                 pca10=list(train=PCA.train[,c(1:10,12)],validation=as.data.frame(PCA.validation[[10]])),
                 pca9=list(train=PCA.train[,c(1:9,12)],validation=as.data.frame(PCA.validation[[9]])),
                 pca8=list(train=PCA.train[,c(1:8,12)],validation=as.data.frame(PCA.validation[[8]])),
@@ -423,16 +422,14 @@ MCE <- function(x, y)
 ```{r}
 validation$binary.quality <- validation$quality >= 6
 validation$quality=NULL
+validation$binary.quality<-as.factor(validation$binary.quality)
+
 
 for(i in 1:length(dataSets)){
   dataSets[[i]]$train$binary.quality<-(dataSets[[i]]$train$quality>GOOD_WINE)
   dataSets[[i]]$train$binary.quality<-as.factor(dataSets[[i]]$train$binary.quality)
   dataSets[[i]]$train$quality<-NULL
 }
-
-train$binary.quality<- as.factor(train$binary.quality)
-validation$binary.quality<-as.factor(validation$binary.quality)
-test$binary.quality<- as.factor(test$binary.quality)
 
 baseline.misclass <- MCE(TRUE, validation$binary.quality)
 baseline.misclass
@@ -442,17 +439,16 @@ baseline.misclass
 ```{r}
 require(FNN)
 fnn.models<- lapply(dataSets,function(x){
-  wine.knn.misclass <- c()
-  sapply(1:50, function(k){
-    knn(train = x$train)
+  mce<-sapply(c(5,10,20), function(k){
+    pred<-knn(train = x$train[-ncol(x$train)],test = x$validation,cl = x$train$binary.quality,k=k)
+    MCE(pred,validation$binary.quality)
   })
+  list(mce=mce,best=list(bestMce=min(mce)),k=c(5,10,20)[which.min(mce)])
 })
-
-for(i in 1:25){
-  wine.knn <- knn(train = train[,1:11], test = validation[,1:11], k = i, cl = train[,12])
-  wine.knn.misclass[i] <- MCE(wine.knn, validation[,12])
-}
-plot(wine.knn.misclass)
+mce<-sapply(fnn.models, function(x){
+  x$best$bestMce
+})
+barplot(mce,las=2)
 ```
 
 ```{r}
