@@ -332,10 +332,10 @@ The fact that the linear coefficients do not quickly shrink towards zero even wh
 ```{r,cache=TRUE,eval=FALSE}
 require(fields)
 tps <- lapply(dataSets, function(x){
-  x<-dataSets$normal
+  x<-dataSets$pca4
 #  train <- as.matrix(as.data.frame(x$train))
-  model<-fastTps(x = as.matrix(x$train),Y = as.matrix(x$train$quality),theta = 1,find.trA = TRUE)
-#  model <- Tps(train[,-ncol(train)], as.data.frame(x$train)$quality, scale.type #= "unscaled")
+#  model<-fastTps(x = as.matrix(x$train),Y = as.matrix(x$train$quality),theta = #1,find.trA = TRUE)
+  model <- Tps(train[,-ncol(train)], as.data.frame(x$train)$quality, scale.type= "unscaled")
   pred <- predict(model, x = as.matrix(as.data.frame(x$validation)))
   list(validationMSE=MSE(pred,validation[12]),trainMSE=mean(model$residuals^2),model=model,mceValidation=mean((pred>GOOD_WINE)!=(validation$quality>GOOD_WINE)))
 })
@@ -361,7 +361,7 @@ plot(mse)
 ```
 LOG?
 
-```{r,eval=TRUE,cache=TRUE}
+```{r,eval=FALSE,cache=TRUE}
 distMatrix=function(N,M){
   eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
   eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
@@ -426,6 +426,7 @@ MCE <- function(x, y)
 ```
 	
 ```{r, echo = FALSE}
+MIN_PRECISION=0.75
 validation$binary.quality <- validation$quality >= 6
 validation$quality=NULL
 validation$binary.quality<-as.factor(validation$binary.quality)
@@ -449,8 +450,10 @@ knn.models<- lapply(dataSets,function(x){
     pred<-knn(train = x$train[-ncol(x$train)],test = x$validation,cl = x$train$binary.quality,k=k)
     MCE(pred,validation$binary.quality)
   })
+  precisi  
   list(mce=mce,best=list(bestMce=min(mce)),k=c(3,4,5,6,10,20,100)[which.min(mce)])
 })
+
 mce<-sapply(knn.models, function(x){
   x$best$bestMce
 })
