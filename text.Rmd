@@ -453,21 +453,19 @@ barplot(mce,las=2)
 ```{r}
 require(MASS)
 
-# cross val
+# remove poly2 and poly3?
 
-wine.lda.cv <- lda(binary.quality ~ ., data = train, CV = TRUE)
-wine.qda.cv <- qda(binary.quality ~ ., data = train, CV = TRUE)
+lda.qda.models <- lapply(dataSets, function(x){
+  wine.lda.cv <- lda(binary.quality ~ ., data = x$train, CV = TRUE)
+  wine.qda.cv <- qda(binary.quality ~ ., data = x$train, CV = TRUE)
+  wine.lda <- lda(binary.quality ~ ., data = x$train)
+  wine.qda <- qda(binary.quality ~ ., data = x$train)
 
-cv.misclass.error.lda <- MCE(wine.lda.cv$class, train[,12])
-cv.misclass.error.qda <- MCE(wine.qda.cv$class, train[,12])
-
-# end cross val
-
-wine.lda <- lda(binary.quality ~ ., data = train)
-wine.qda <- qda(binary.quality ~ ., data = train)
-
-qda.validation.mce <- MCE(predict(wine.qda, validation[,-12])$class, validation[,12])
-lda.validation.mce <- MCE(predict(wine.lda, validation[,-12])$class, validation[,12])
+  list(CV.MCE.lda=MCE(wine.lda.cv$class, x$train[,ncol(x$train)]),CV.MCE.qda=MCE(wine.qda.cv$class,
+  x$train[,ncol(x$train)]),qda.validation.MCE=MCE(predict(wine.qda, x$validation)$class,
+  validation[,12]),lda.validation.MCE=MCE(predict(wine.lda, x$validation)$class, 
+  validation[,12]))
+})
 ```
 
 ```{r}
@@ -507,7 +505,7 @@ View(df[order(as.numeric(df$validationError)),])
 ```{r}
 require(randomForest)
 rf <- lapply(dataSets, function(x){
-  model<-randomForest(binary.quality ~ ., x$train, ntree = 30)
+  model<-randomForest(binary.quality ~ ., x$train, ntree = 5)
   tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
                                 which.min(model$err.rate[,1]))
   pred<-predict(tuned.model,as.data.frame(x$validation))
@@ -538,26 +536,23 @@ pred <- predict.glm(model, newdata = x$validation, type = "response")
 pred.rocr <- prediction(pred, validation$binary.quality)
 })
 
-# accuarcy
-plot(performance(logistic.reg$normal, "acc"), col = 6, xlim = c(0,1.2))
-for (i in 2:14){
-  lines(performance(logistic.reg[[i]], "acc")@x.values[[1]], performance(logistic.reg[[i]], "acc")@y.values[[1]], col = i + 5)}
+c.plot <- function(x){
+  for (j in c("acc","prec","rec")){
 
-legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2", "PCA1"), col=seq(6,14), lty=1, cex = 0.5)
-
-
-# precision
-plot(performance(logistic.reg$normal, "ppv"), col = 6, xlim = c(0,1.2))
-for (i in 2:14){
-  lines(performance(logistic.reg[[i]], "ppv")@x.values[[1]], performance(logistic.reg[[i]], "acc")@y.values[[1]], col = i + 5)}
-
-legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2", "PCA1"), col=seq(6,14), lty=1, cex = 0.5)
-
-# precision
-plot(performance(logistic.reg$normal, "tpr"), col = 6, xlim = c(0,1.2))
-for (i in 2:14){
-  lines(performance(logistic.reg[[i]], "tpr")@x.values[[1]], performance(logistic.reg[[i]], "acc")@y.values[[1]], col = i + 5)}
-
-legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2", "PCA1"), col=seq(6,14), lty=1, cex = 0.5)
-
+    plot(performance(x$normal, j), col = 1, xlim = c(0,1.2))
+    for (i in 2:length(x)){
+      lines(performance(x[[i]], j)@x.values[[1]], performance(x[[i]],
+        j)@y.values[[1]], col = i)}
+    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
+  
+  
+  plot(performance(x[[1]], "acc")@x.values[[1]], performance(x[[1]], "acc")@y.values[[1]] +
+  performance(x[[1]], "prec")@y.values[[1]] + performance(x[[1]],"rec")@y.values[[1]], col =
+  1, xlim = c(0,1.2), type = "l", xlab = "Cutoff", ylab = "Accuracy + Precision + Recall")
+  
+  for (i in 2:length(x)){
+    lines(performance(x[[i]], "acc")@x.values[[1]], performance(x[[i]], "acc")@y.values[[1]] +
+    performance(x[[i]], "ppv")@y.values[[1]] + performance(x[[i]], "tpr")@y.values[[1]], col = i)}
+  legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)
+}
 ```
