@@ -1,6 +1,6 @@
 ---
 title: "Project"
-author: "Simon Almerstr�m Przybyl & Daniel �hman"
+author: "Simon Almerstr?m Przybyl & Daniel ?hman"
 date: "July 27th 2015"
 output: html_document
 ---
@@ -420,12 +420,12 @@ barplot(ridge.mce,las=2,main="Ridge models",ylim = c(0,0.45))
 
 ##5.2 CLASSIFICATION
 	
-```{r}
+```{r, echo = FALSE}
 MCE <- function(x, y)
   {mean(x != y)}
 ```
 	
-```{r}
+```{r, echo = FALSE}
 validation$binary.quality <- validation$quality >= 6
 validation$quality=NULL
 validation$binary.quality<-as.factor(validation$binary.quality)
@@ -440,21 +440,27 @@ baseline.misclass <- MCE(TRUE, validation$binary.quality)
 baseline.misclass
 ```
 
+What is KNN...
 
-```{r,eval=FALSE}
+```{r,eval=FALSE, warning = FALSE}
 require(FNN)
-fnn.models<- lapply(dataSets,function(x){
-  mce<-sapply(c(5,10,20), function(k){
+knn.models<- lapply(dataSets,function(x){
+  mce<-sapply(c(3,4,5,6,10,20,100), function(k){
     pred<-knn(train = x$train[-ncol(x$train)],test = x$validation,cl = x$train$binary.quality,k=k)
     MCE(pred,validation$binary.quality)
   })
-  list(mce=mce,best=list(bestMce=min(mce)),k=c(5,10,20)[which.min(mce)])
+  list(mce=mce,best=list(bestMce=min(mce)),k=c(3,4,5,6,10,20,100)[which.min(mce)])
 })
-mce<-sapply(fnn.models, function(x){
+mce<-sapply(knn.models, function(x){
   x$best$bestMce
 })
-barplot(mce,las=2)
+# barplot(mce,las=2)
+# plot, y = validation MCE, x = antal grannar
 ```
+
+Poly3 with K = 5 is best (validation MSE: 0.1935047).
+
+Describe LDA and QDA.
 
 ```{r,eval=FALSE}
 require(MASS)
@@ -472,54 +478,64 @@ lda.qda.models <- lapply(dataSets, function(x){
   validation[,12]),lda.validation.MCE=MCE(predict(wine.lda, x$validation)$class, 
   validation[,12]))
 })
+
+# barplot
+# $posterior + ROCR...
 ```
+
+SVM...
 
 ```{r,eval=FALSE}
 require(e1071)
 
 #Hyperparameters
-degree<-c(3,4)
-gamma<-c(0.01,0.05,0.10,0.15)
-coef0<-c(1,2)
-cost<-c(1,2,3)
+degree<-c(3)
+gamma<-c(0.10)
+coef0<-c(1)
+cost<-c(1)
 
 #Models for diffrent kernels
 models<-apply(expand.grid(degree,gamma,coef0,cost),MARGIN = 1,function(x){
-  svm(binary.quality~.,data=train,kernel="polynomial",degree=x[1],gamma=x[2],coef0=x[3],cost=x[4])
+  svm(binary.quality~.,data=dataSets$normal$train,kernel="polynomial",degree=x[1],gamma=x[2],coef0=x[3],cost=x[4])
 })
 models<-c(models,lapply(cost,function(x){
-  svm(binary.quality~.,data=train,kernel="linear",cost=x[1])
+  svm(binary.quality~.,data=dataSets$normal$train,kernel="linear",cost=x[1])
 }))
 models<-c(models,apply(expand.grid(gamma,cost),MARGIN = 1,function(x){
-  svm(binary.quality~.,data=train,kernel="radial",gamma=x[1],cost=x[2])
+  svm(binary.quality~.,data=dataSets$normal$train,kernel="radial",gamma=x[1],cost=x[2])
 }))
 models<-c(models,apply(expand.grid(gamma,coef0,cost),MARGIN = 1,function(x){
-  svm(binary.quality~.,data=train,kernel="sigmoid",gamma=x[1],coef0=x[2],cost=x[3])
+  svm(binary.quality~.,data=dataSets$normal$train,kernel="sigmoid",gamma=x[1],coef0=x[2],cost=x[3])
 }))
 
 #Use the models to predict
-df<-as.data.frame(t(sapply(models,function(x){validationError<-mean((predict(object = x,newdata=validation))!=(validation$binary.quality))
-trainError<-mean((predict(object = x))!=(train$binary.quality))
+df<-as.data.frame(t(sapply(models,function(x){validationError<-mean((predict(object = x,newdata=dataSets$normal$validation))!=(validation$binary.quality))
+trainError<-mean((predict(object = x))!=(dataSets$normal$train$binary.quality))
 list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$degree,trainError=trainError,validationError=validationError )
   })))
 
 
 View(df[order(as.numeric(df$validationError)),])
+
+# barplot 
 ```	
 
 
-```{r,eval=FALSE}
+```{r,eval=FALSE, cache=TRUE}
+set.seed(56)
 require(randomForest)
-rf <- lapply(dataSets, function(x){
+randomForest.c.models <- lapply(dataSets, function(x){
   model<-randomForest(binary.quality ~ ., x$train, ntree = 5)
   tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
                                 which.min(model$err.rate[,1]))
   pred<-predict(tuned.model,as.data.frame(x$validation))
   list(validationMCE=MCE(pred,validation$binary.quality))
 })
+#plot?
 ```
 
 ```{r,eval=FALSE}
+set.seed(56)
 require(ada)
 
 dataSets.new <- dataSets
@@ -531,11 +547,13 @@ ada.models <- lapply(dataSets.new, function(x){
   pred<-predict(model,x$validation)
   list(validationMCE=MCE(pred,validation$binary.quality))
 })
+#min mce
 ```
 
 ```{r,eval=FALSE}
 require(ROCR)
 
+# returnerna model
 logistic.reg <- lapply(dataSets, function(x){
 model <- glm(binary.quality ~ ., data = x$train, family = "binomial")
 pred <- predict.glm(model, newdata = x$validation, type = "response")
@@ -545,20 +563,28 @@ pred.rocr <- prediction(pred, validation$binary.quality)
 c.plot <- function(x){
   for (j in c("acc","prec","rec")){
 
-    plot(performance(x$normal, j), col = 1, xlim = c(0,1.2))
+    plot(performance(x$normal, j), col = 1, xlim = c(0,1.2), lwd = 3)
     for (i in 2:length(x)){
       lines(performance(x[[i]], j)@x.values[[1]], performance(x[[i]],
-        j)@y.values[[1]], col = i)}
+        j)@y.values[[1]], col = i, lwd = 3)}
     legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
   
   
   plot(performance(x[[1]], "acc")@x.values[[1]], performance(x[[1]], "acc")@y.values[[1]] +
-  performance(x[[1]], "prec")@y.values[[1]] + performance(x[[1]],"rec")@y.values[[1]], col =
-  1, xlim = c(0,1.2), type = "l", xlab = "Cutoff", ylab = "Accuracy + Precision + Recall")
+  performance(x[[1]], "prec")@y.values[[1]], col = 1, xlim = c(0,1.2), ylim = c(1.30,1.65), type = 
+  "l", xlab = "Cutoff", ylab = "Accuracy + Precision", lwd = 3)
   
   for (i in 2:length(x)){
     lines(performance(x[[i]], "acc")@x.values[[1]], performance(x[[i]], "acc")@y.values[[1]] +
-    performance(x[[i]], "ppv")@y.values[[1]] + performance(x[[i]], "tpr")@y.values[[1]], col = i)}
+    performance(x[[i]], "prec")@y.values[[1]], col = i, lwd = 3)}
   legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)
 }
+
 ```
+##Results and disc
+best model best (lowest mce) feature set.
+
+
+diskussion om att de nödvändigtvis inte har fått bäst modell efter att de varierat...!
+
+
