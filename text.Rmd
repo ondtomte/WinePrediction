@@ -1,6 +1,6 @@
 ---
 title: "Project"
-author: "Simon AlmerstrÃ¶m Przybyl & Daniel Ã–hman"
+author: "Simon Almerström Przybyl & Daniel Öhman"
 date: "July 27th 2015"
 output: html_document
 ---
@@ -25,10 +25,10 @@ Regarding the accuracy of the different subtasks:
 
 In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model consists of simply guessing the mean quality of the training.
 ```{r}
-hist(train$quality,col = "red",main = "Training", xlab = "Quality")
+hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality")
 ```
 
-Note that the histogram plots the quality of the training observations, we will describe the process of splitting the data into training, validation and test sets more thorughly later.
+#Note that the histogram plots the quality of the training observations, we will describe the process of #splitting the data into training, validation and test sets more thorughly later.
 
 Since our training data is approximately normally distrubuted around 6 (with of variance of 0.7723022), our baseline model will perform quite well (this model yields a validation MSE of 0.7705384 and a test MSE of 0.7779192). Therefore, in order to justify the existence of our more sophisticated models, we want them to give a much lower MSE.
 
@@ -98,7 +98,7 @@ Since the standard deviations decrease quite slowly without any sharp decline, e
 
 We also create new data frames where we have projected our original data onto 2nd and 3rd order polynomials, note that these polynomials contain 11 variables and thus have a lot of cross terms. We do not project onto polynomials of higher order because of computational limitations, and we do not believe that such polynomials would yield better models since they would most likely overfit to the training data. When we create models, we will simultaneously create a given model (for example linear regression) for all of these data frames.
 
-```{r}
+```{r, echo=FALSE}
 #Create data set with diffrent attribute
 trainPoly<-lapply(2:3,function(x){
   foo<- with(train,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
@@ -184,7 +184,7 @@ The fact that density has the highest mutual information criterion intuitively m
 
 ##5.1 REGRESSION
 
-```{r}
+```{r, echo=FALSE}
 MSE <- function(x,y){
   mean((x - y)^2, na.rm = TRUE)}
 ```
@@ -220,7 +220,7 @@ The difference in validation MSE between the best models is quite small, but pol
 
 We also construct a set of lasso models, these models give a penalty on the absolute value of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as $/lambda$ grows larger) and might also thus give us information regarding if some of our attributes are redundant:
 
-```{r}
+```{r, cache=TRUE}
 require(lars)
 
 lasso.models <- lapply( dataSets, function(x){
@@ -257,13 +257,13 @@ For the untransformed data, the more attributes that were removed the higher the
 
 Moreover, we also construct ridge models which penalize the absolute value of the linear coefficients:
 
-```{r}
+```{r,eval=TRUE,cache=TRUE}
 predict.ridge<-function(model,x,i){
   scale(x,center = model$xm,scale = model$scales)%*%model$coef[i,] +model$ym
 }
 
 library(MASS)
-ridge.models<-lapply(dataSets[-14],function(x){
+ridge.models<-lapply(dataSets[-13],function(x){
   models<-lm.ridge(formula = quality~.,data=x$train,lambda = seq(0,1500,by=10))
   predictionsValidation <- scale(x$validation,center = models$xm,scale = models$scales)%*%models$coef +models$ym
   validationMSE <- apply(predictionsValidation,MARGIN=2,MSE,y=validation$quality)
@@ -276,23 +276,23 @@ ridge.models<-lapply(dataSets[-14],function(x){
     
   list(trainMSE=trainMSE, validationMSE= validationMSE, model=models,bestRidgeModel=bestRidgeModel,mceValidation=mceValidation)
 })
+```
 
+```{r, echo=FALSE}
+plot(ridge.models$poly3$trainMSE,type="l",ylim = c(0.35,0.58))
+lines(ridge.models$poly3$validationMSE,type="l")
 
+plot(ridge.models$poly2$trainMSE,type="l",ylim = c(min(ridge.models$poly2$trainMSE),max(ridge.models$poly2$validationMSE)))
+lines(ridge.models$poly2$validationMSE,type="l")
 
-plot(ridge.mse$poly3$trainMSE,type="l",ylim = c(0.35,0.58))
-lines(ridge.mse$poly3$validationMSE,type="l")
-
-plot(ridge.mse$poly2$trainMSE,type="l",ylim = c(min(ridge.mse$poly2$trainMSE),max(ridge.mse$poly2$validationMSE)))
-lines(ridge.mse$poly2$validationMSE,type="l")
-
-plot(ridge.mse$pca6$trainMSE,type="l",ylim = c(min(ridge.mse$pca6$trainMSE),max(ridge.mse$pca6$validationMSE)))
-lines(ridge.mse$pca6$validationMSE,type="l")
+plot(ridge.models$pca6$trainMSE,type="l",ylim = c(min(ridge.models$pca6$trainMSE),max(ridge.models$pca6$validationMSE)))
+lines(ridge.models$pca6$validationMSE,type="l")
 
 
 ```
 
 
-```{r}
+```{r,eval=FALSE, echo=FALSE}
 #Learninng rate
 #TODO Make a function
 #plot.learning.rate<-function(model,data,min,max){
@@ -329,7 +329,7 @@ lines(x=n,y=mse.train,type="l", col="red")
 
 The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our belief that we should not remove attributes.
 
-```{r,cache=TRUE}
+```{r,cache=TRUE,eval=FALSE}
 require(fields)
 tps <- lapply(dataSets, function(x){
   x<-dataSets$normal
@@ -342,20 +342,26 @@ tps <- lapply(dataSets, function(x){
 
 ```
 
-```{r}
+```{r,eval=TRUE,cache=TRUE}
 require(randomForest)
-rf <- lapply(dataSets, function(x){
-  model<-randomForest(quality ~ ., data=x$train, ntree = 500)
+randomForest.models <- lapply(dataSets, function(x){
+  model<-randomForest(quality ~ ., data=x$train, ntree = 40)
   tuned.model <- randomForest(quality ~ ., data=x$train, ntree =
                                 which.min(model$mse))
   pred<-predict(model,as.data.frame(x$validation))
-  list(validationMSE=MSE(pred,validation[12]),trainMSE=tuned.model$mse[length(tuned.model$mse)])
+  list(validationMSE=MSE(pred,validation$quality),trainMSE=tuned.model$mse[length(tuned.model$mse)])
 })
 ```
 
+```{r}
+mse<- sapply(randomForest.models,function(x){
+  x$validationMSE
+})
+plot(mse)
+```
 LOG?
 
-```{r}
+```{r,eval=TRUE,cache=TRUE}
 distMatrix=function(N,M){
   eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
   eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
@@ -389,7 +395,7 @@ legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7"
 
 #5.x Regression models for classification
 In a way to establish a new better baseline for the classification part. We decided to try our regression models for classification.
-```{r}
+```{r,eval=FALSE}
 #Linear
 linear.mce<-sapply(linear.models,function(x){
   x$mceValidation
@@ -435,7 +441,7 @@ baseline.misclass
 ```
 
 
-```{r}
+```{r,eval=FALSE}
 require(FNN)
 fnn.models<- lapply(dataSets,function(x){
   mce<-sapply(c(5,10,20), function(k){
@@ -450,7 +456,7 @@ mce<-sapply(fnn.models, function(x){
 barplot(mce,las=2)
 ```
 
-```{r}
+```{r,eval=FALSE}
 require(MASS)
 
 # cross val
@@ -470,7 +476,7 @@ qda.validation.mce <- MCE(predict(wine.qda, validation[,-12])$class, validation[
 lda.validation.mce <- MCE(predict(wine.lda, validation[,-12])$class, validation[,12])
 ```
 
-```{r}
+```{r,eval=FALSE}
 require(e1071)
 
 #Hyperparameters
@@ -504,7 +510,7 @@ View(df[order(as.numeric(df$validationError)),])
 ```	
 
 
-```{r}
+```{r,eval=FALSE}
 require(randomForest)
 rf <- lapply(dataSets, function(x){
   model<-randomForest(binary.quality ~ ., x$train, ntree = 30)
@@ -515,7 +521,7 @@ rf <- lapply(dataSets, function(x){
 })
 ```
 
-```{r}
+```{r,eval=FALSE}
 require(ada)
 
 dataSets.new <- dataSets
@@ -529,7 +535,7 @@ ada.models <- lapply(dataSets.new, function(x){
 })
 ```
 
-```{r}
+```{r,eval=FALSE}
 require(ROCR)
 
 logistic.reg <- lapply(dataSets, function(x){
