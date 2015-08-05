@@ -377,13 +377,15 @@ distMatrix=function(N,M){
 temp.dataSets <- dataSets
 temp.dataSets$pca1 <- NULL
 
+neighbors <- 2
+
 loc.reg.mse <- lapply(temp.dataSets, function(x){
 # PCA1
   matrix <- as.matrix(as.data.frame(x$train))
   distance<-distMatrix(matrix[,-ncol(matrix)],as.matrix(as.data.frame(x$validation)))
   pred <- c()
   validationMSE <- c()
-  for (r in seq(30, 90, 30)){
+  for (r in neighbors){
     for(i in 1:nrow(validation)){
       n<-sort(distance[i,],index.return = TRUE)$ix[1:r]
       mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
@@ -392,11 +394,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
   list(validationMSE=validationMSE)
 })
 
-plot(c(30,60,90), loc.reg.mse$normal$validationMSE, type = "l", xlab = "Number of neighbors", ylab = "validation MSE", col = 6, xlim = c(30, 100))
-for (i in 2:11){
-  lines(c(30,60,90), loc.reg.mse[[i]]$validationMSE, col = i + 5)}
-
-legend("topright", c("normal","poly2","poly3","PCA","PCA10","PCA9","PCA8","PCA7","PCA6","PCA5","PCA4","PCA3","PCA2"), col=seq(6,16), lty=1, cex = 0.5)
+generic.plot(neighbors, c(30, 100), c(.10,.50), "Number of neighbors", loc.reg.mse)
 ```
 
 #5.x Regression models for classification
@@ -449,6 +447,19 @@ baseline.misclass
 
 Our first classification model will be a KNN model where we classify a new observation according to which class its K-nearest euclidean neighbors belong to (letting the majority decide the outcome and if a tie occurs, letting the K-1 nearest neighbors decide the outcome).
 
+```{r}
+cust.col <- append(colors(distinct = TRUE)[1],colors(distinct = TRUE)[1 + seq(2,length(dataSets))*30])
+
+generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
+    plot(x.cord, x[[1]], col = cust.col[1], lwd = 3, type = "l", xlim = x.lim, ylim =
+    y.lim, xlab = x.name, ylab = "Validation MCE")
+    for (i in 2:length(x)){
+      lines(x.cord, x[[i]], col = cust.col[i], lwd = 3)}
+    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
+# COLOR PROBLEM, rainbow()...?
+```
+
+
 ```{r,eval=FALSE, warning = FALSE}
 require(FNN)
 neighbors <- c(3,5,7,10,20,40,60,100,150,200)
@@ -457,23 +468,14 @@ knn.models<- lapply(dataSets,function(x){
     pred<-knn(train = x$train[-ncol(x$train)],test = x$validation,cl = x$train$binary.quality,k=k)
     MCE(pred,validation$binary.quality)
   })
-  list(mce=mce,best=list(bestMce=min(mce)),k=neighbors[which.min(mce)])
+#  list(mce=mce,best=list(bestMce=min(mce)),k=neighbors[which.min(mce)])
 })
 
-mce<-sapply(knn.models, function(x){
-  x$best$bestMce
-})
+#mce<-sapply(knn.models, function(x){
+#  x$best$bestMce
+#})
 
-knn.plot <- function(x.cord, x.lim, x){
-    plot(x.cord, x$normal$mce, col = 1, lwd = 3, type = "l", ylim = c(.17,.33), xlim = x.lim, xlab =
-    "Number of neighbors", ylab = "Validation MCE")
-    for (i in 2:length(x)){
-      lines(x.cord, x[[i]]$mce, col = i, lwd = 3)}
-    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
-
-# COLOR PROBLEM, rainbow()...?
-
-knn.plot(neighbors, c(0,240), knn.models)
+generic.plot(neighbors, c(0,240), c(.17,.33), "Number of neighbors", knn.models)
 ```
 
 The best KNN model turns out to be the dataset poly3 with K = 5, giving a validation MCE of 0.1935047.
@@ -595,14 +597,7 @@ randomForest.c.models <- lapply(dataSets, function(x){
 
 # OOB gör det vi vill, eller är i träning..?
 
-rf.plot <- function(x.cord, x.lim, x){
-    plot(x.cord, x$normal, col = 1, lwd = 3, type = "l", ylim = c(.12,.32), xlim = x.lim,, xlab =
-    "Number of trees", ylab = "Validation MCE")
-    for (i in 2:length(x)){
-      lines(x.cord, x[[i]], col = i, lwd = 3)}
-    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
-
-rf.plot(trees, c(0,240), randomForest.c.models)
+generic.plot(trees, c(0,240), c(.12,.32), "Number of neighbors", randomForest.c.models)
 
 # gör poly3 med många och tuned?
 ```
@@ -625,14 +620,7 @@ ada.models <- lapply(dataSets.foo, function(x){
   })
 })
 
-ada.plot <- function(x.cord, x.lim, x){
-    plot(x.cord, x$normal, col = 1, lwd = 3, type = "l", ylim = c(.18,.33), xlim = x.lim,, xlab =
-    "Number of iterations", ylab = "Validation MCE")
-    for (i in 2:length(x)){
-      lines(x.cord, x[[i]], col = i, lwd = 3)}
-    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
-
-ada.plot(iterations, c(1,23), ada.models)
+generic.plot(iterations, c(1,23), c(.18,.33), "Number of iterations", ada.models)
 
 # gör poly3 med många och tuned?
 ```
