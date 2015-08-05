@@ -377,7 +377,7 @@ distMatrix=function(N,M){
 temp.dataSets <- dataSets
 temp.dataSets$pca1 <- NULL
 
-neighbors <- 2
+neighbors <- seq(30,60,30)
 
 loc.reg.mse <- lapply(temp.dataSets, function(x){
 # PCA1
@@ -391,7 +391,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
       mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
       pred[i]<-predict(mod,as.data.frame(x$validation)[i,])}
       validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
-  list(validationMSE=validationMSE)
+  validationMSE
 })
 
 generic.plot(neighbors, c(30, 100), c(.10,.50), "Number of neighbors", loc.reg.mse)
