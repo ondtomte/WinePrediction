@@ -337,15 +337,18 @@ The fact that the linear coefficients do not quickly shrink towards zero even wh
 
 ```{r,cache=TRUE,eval=FALSE}
 require(fields)
-tps <- lapply(dataSets, function(x){
-  x<-dataSets$pca4
-#  train <- as.matrix(as.data.frame(x$train))
-#  model<-fastTps(x = as.matrix(x$train),Y = as.matrix(x$train$quality),theta = #1,find.trA = TRUE)
-  model <- Tps(train[,-ncol(train)], as.data.frame(x$train)$quality, scale.type= "unscaled")
-  pred <- predict(model, x = as.matrix(as.data.frame(x$validation)))
-  list(validationMSE=MSE(pred,validation[12]),trainMSE=mean(model$residuals^2),model=model,mceValidation=mean((pred>GOOD_WINE)!=(validation$quality>GOOD_WINE)))
+# avoiding colinearity
+remove <- c(1,2,3,4)
+tps.models <- lapply(dataSets[-remove], function(x){
+  model <- Tps(as.matrix(x$train[,-ncol(x$train)]), x$train[,ncol(x$train)], scale.type = "unscaled")
+  pred <- predict(model, as.matrix(x$validation))
+  list(validationMSE=MSE(pred,validation[,12]),trainMSE=mean(model$residuals^2),mceValidation=mean((pred>GOOD_WINE)!=(validation$quality>GOOD_WINE)))
 })
+```
 
+```{r,cache=TRUE,eval=FALSE}
+tps.valid <-rev(sapply(tps.models, function(x){x$validationMSE}))
+barplot(tps.valid, ylab = "Validation MSE", las = 2, ylim = c(0, 1))
 ```
 
 ```{r,eval=TRUE,cache=TRUE}
@@ -394,7 +397,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
   validationMSE
 })
 
-generic.plot(neighbors, c(30, 100), c(.10,.50), "Number of neighbors", loc.reg.mse)
+generic.plot(neighbors, c(30, 100), c(0,1), "Number of neighbors", loc.reg.mse)
 ```
 
 #5.x Regression models for classification
@@ -420,7 +423,6 @@ barplot(ridge.mce,las=2,main="Ridge models",ylim = c(0,0.45))
 
 
 ```
-
 
 ##5.2 CLASSIFICATION
 	
@@ -448,14 +450,14 @@ baseline.misclass
 Our first classification model will be a KNN model where we classify a new observation according to which class its K-nearest euclidean neighbors belong to (letting the majority decide the outcome and if a tie occurs, letting the K-1 nearest neighbors decide the outcome).
 
 ```{r}
-cust.col <- append(colors(distinct = TRUE)[1],colors(distinct = TRUE)[1 + seq(2,length(dataSets))*30])
+cust.col <- append(colors(distinct = TRUE)[5],colors(distinct = TRUE)[5 + seq(2,length(dataSets))*30])
 
 generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
     plot(x.cord, x[[1]], col = cust.col[1], lwd = 3, type = "l", xlim = x.lim, ylim =
     y.lim, xlab = x.name, ylab = "Validation MCE")
     for (i in 2:length(x)){
       lines(x.cord, x[[i]], col = cust.col[i], lwd = 3)}
-    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}
+    legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)}
 # COLOR PROBLEM, rainbow()...?
 ```
 
@@ -635,28 +637,13 @@ pred <- predict.glm(model, newdata = x$validation, type = "response")
 pred.rocr <- prediction(pred, validation$binary.quality)
 })
 
-c.plot <- function(x){
-  for (j in c("acc","prec","rec")){
-
-    plot(performance(x$normal, j), col = 1, xlim = c(0,1.2), lwd = 3)
-    for (i in 2:length(x)){
-      lines(performance(x[[i]], j)@x.values[[1]], performance(x[[i]],
-        j)@y.values[[1]], col = i, lwd = 3)}
-    legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)}}
-  
-  
-
-### ACCURACY + PRECISION
-  plot(performance(x[[1]], "acc")@x.values[[1]], performance(x[[1]], "acc")@y.values[[1]] +
-  performance(x[[1]], "prec")@y.values[[1]], col = 1, xlim = c(0,1.2), ylim = c(1.30,1.65), type = 
-  "l", xlab = "Cutoff", ylab = "Accuracy + Precision", lwd = 3)
-  
-  for (i in 2:length(x)){
-    lines(performance(x[[i]], "acc")@x.values[[1]], performance(x[[i]], "acc")@y.values[[1]] +
-    performance(x[[i]], "prec")@y.values[[1]], col = i, lwd = 3)}
-  legend("topright", names(x), col=seq(1,length(x)), lty=1, cex = 0.5)
-}
-###
+x <- logistic.reg
+plot(performance(x[[1]], "acc")@x.values[[1]], 1 - performance(x[[1]], "acc")@y.values[[1]], col =
+cust.col[1], xlim = c(0,1.2), ylim = c(.20,.7), lwd = 3, ylab = "Validation MCE", xlab = "Cutoff", type = "l")
+for (i in 2:length(x)){
+  lines(performance(x[[i]], "acc")@x.values[[1]], 1 - performance(x[[i]], "acc")@y.values[[1]], col =
+  cust.col[i], lwd = 3)}
+legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)
 ```
 ##Results and disc
 best model best (lowest mce) feature set.
