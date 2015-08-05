@@ -210,7 +210,7 @@ The models performed badly, the only model with descent performance was the alco
 
 We continue with more advanced linear models:
 
-```{r}
+```{r,cache=TRUE}
 library(boot)
 linear.models <- lapply(dataSets, function(x){
   model<-glm(quality~.,data=x$train)
@@ -218,8 +218,21 @@ linear.models <- lapply(dataSets, function(x){
   cv<-cv.glm(as.data.frame(x$train), model, K = 5)
   list(validationMSE=MSE(pred,validation[12]),
   trainMSE=mean(model$residuals^2),
-  trainCV=cv$delta,mceValidation=mean((pred<GOOD_WINE)!=(validation$quality<GOOD_WINE)),model=model)
+  trainCV=cv$delta[1],mceValidation=mean((pred<GOOD_WINE)!=(validation$quality<GOOD_WINE)),model=model)
 })
+```
+```{r, echo=FALSE}
+mse.linearV<-sapply(linear.models,function(x){
+  x$validationMSE
+})
+mse.linearT<-sapply(linear.models,function(x){
+  x$trainMSE
+})
+mse.linearCV<-sapply(linear.models,function(x){
+  x$trainCV
+})
+
+barplot(t(cbind(mse.linearV,mse.linearT,mse.linearCV)),main="Linear regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train","Train CV"),args.legend = list(x="bottomright"))
 ```
 
 The difference in validation MSE between the best models is quite small, but polynomial regression of degree 2 performs best. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are relevant (it can also be noted that using all PCA components gives the same result as performing linear regression on the original data, as expected).
@@ -244,8 +257,12 @@ lasso.models <- lapply( dataSets, function(x){
 The lasso models corresponding to polynomial regression of degree 3 gave the lowest MSE. This can actually be said to match the results from our ordinary linear models: Lasso regression on the poly3 data approximately corresponds to successively removing terms from the fitted 3rd order polynomial. Since polynomial regression of degree 2 gave the best linear model, and polynomial regression of degree 3 gave the second best, it seems reasonable to find an even better polynomial fit if we let the degree of the polynomial "lie between" 2 and 3.
 
 ```{r}
-p<-sapply(lasso.models, function(x){min(x$validationMSE)})
-barplot(p,las=2,main="Best Lasso model",ylab = "Validation MSE")
+mse.lassoV<-sapply(lasso.models,function(x){
+  x$bestMse$min
+})
+
+barplot(mse.lassoV,main="Best Lasso Model", ylab="Validation MSE",las=2)
+
 ```
 
 ```{r}
@@ -284,17 +301,30 @@ ridge.models<-lapply(dataSets[-13],function(x){
 })
 ```
 
+```{r}
+mse.ridgeV<-sapply(ridge.models,function(x){
+  x$bestRidgeModel$bestMse
+})
+
+mse.ridgeT<-sapply(ridge.models,function(x){
+  x$trainMSE[x$bestRidgeModel$bestModel]
+})
+barplot(t(cbind(mse.ridgeV,mse.ridgeT)),main="Best Ridge regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomright"))
+```
+
 ```{r, echo=FALSE}
-plot(ridge.models$poly3$trainMSE,type="l",ylim = c(0.35,0.58))
-lines(ridge.models$poly3$validationMSE,type="l")
+par(mfrow=c(2,2))
+plot(y=ridge.models$poly3$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=expression(lambda),ylim = c(0.35,0.58),col="red",main="Poly3")
+lines(y=ridge.models$poly3$validationMSE,x=seq(0,1500,by=10),type="l",col="blue")
 
-plot(ridge.models$poly2$trainMSE,type="l",ylim = c(min(ridge.models$poly2$trainMSE),max(ridge.models$poly2$validationMSE)))
-lines(ridge.models$poly2$validationMSE,type="l")
+plot(y=ridge.models$poly2$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=expression(lambda),ylim = c(min(ridge.models$poly2$trainMSE),max(ridge.models$poly2$validationMSE)),col="red",main="Poly2")
+lines(y=ridge.models$poly2$validationMSE,x=seq(0,1500,by=10),type="l",col="blue")
 
-plot(ridge.models$pca6$trainMSE,type="l",ylim = c(min(ridge.models$pca6$trainMSE),max(ridge.models$pca6$validationMSE)))
-lines(ridge.models$pca6$validationMSE,type="l")
+plot(y=ridge.models$normal$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=expression(lambda),ylim = c(min(ridge.models$normal$trainMSE),max(ridge.models$normal$validationMSE)),col="red",main="Normal")
+lines(y=ridge.models$normal$validationMSE,x=seq(0,1500,by=10),type="l",col="blue")
 
-
+plot(y=ridge.models$pca4$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=expression(lambda),ylim = c(min(ridge.models$pca4$trainMSE),max(ridge.models$pca4$validationMSE)),col="red",main="PCA4")
+lines(y=ridge.models$pca4$validationMSE,x=seq(0,1500,by=10),type="l",col="blue")
 ```
 
 
@@ -360,14 +390,19 @@ randomForest.models <- lapply(dataSets, function(x){
 ```
 
 ```{r}
-mse<- sapply(randomForest.models,function(x){
+mse.forestV<- sapply(randomForest.models,function(x){
   x$validationMSE
 })
-plot(mse)
+
+mse.forestT<- sapply(randomForest.models,function(x){
+  x$trainMSE
+})
+barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomright"))
 ```
+
 LOG?
 
-```{r,eval=FALSE,cache=TRUE}
+```{r,eval=TRUE,cache=TRUE}
 distMatrix=function(N,M){
   eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
   eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
@@ -422,7 +457,7 @@ barplot(ridge.mce,las=2,main="Ridge models",ylim = c(0,0.45))
 ```
 
 
-##5.2 CLASSIFICATION
+##5.1 CLASSIFICATION
 	
 ```{r, echo = FALSE}
 MCE <- function(x, y)
@@ -447,7 +482,7 @@ baseline.misclass
 
 Our first classification model will be a KNN model where we classify a new observation according to which class its K-nearest euclidean neighbors belong to (letting the majority decide the outcome and if a tie occurs, letting the K-1 nearest neighbors decide the outcome).
 
-```{r}
+```{r, echo=FALSE}
 cust.col <- append(colors(distinct = TRUE)[1],colors(distinct = TRUE)[1 + seq(2,length(dataSets))*30])
 
 generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
@@ -460,7 +495,7 @@ generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
 ```
 
 
-```{r,eval=FALSE, warning = FALSE}
+```{r,eval=TRUE, warning = FALSE}
 require(FNN)
 neighbors <- c(3,5,7,10,20,40,60,100,150,200)
 knn.models<- lapply(dataSets,function(x){
@@ -511,7 +546,7 @@ RESULTS
 
 The following support vector machine (SVM) models find the hyperplane which best separates the classes given the specified hyperparameters. Note that we only construct this model with the normal dataset due to the large number of hyperparameters.
 
-```{r,eval=FALSE}
+```{r,eval=TRUE}
 require(e1071)
 
 #Hyperparameters
@@ -541,7 +576,7 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
   })))
 
 
-View(df[order(as.numeric(df$validationError)),])
+df[order(as.numeric(df$validationError)),]
 
 # barplot 
 # tabell istället? Titta närmare på radial med fler hyperparametrar (coef0 och degree ändras inte?):
@@ -563,7 +598,7 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
   })))
 
 
-View(df[order(as.numeric(df$validationError)),])
+df[order(as.numeric(df$validationError)),]
 
 ```	
 
@@ -579,7 +614,7 @@ Valid MCE: 0.166441136671177
 
 We construct a set of random forest models, DESCRIPTION...
 
-```{r,eval=FALSE, cache=TRUE}
+```{r,eval=TRUE, cache=TRUE}
 set.seed(56)
 require(randomForest)
 trees <- c("5" = 5, "10" = 10, "20" = 20, "50" = 50, "100" = 100, "200" = 200)
