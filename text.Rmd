@@ -9,10 +9,10 @@ output: html_document
 
 For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
 
-if(exists("winequality-white.csv"))
+```{r}
 #download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wi#ne-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
-#wine<-read.csv("winequality-white.csv",sep=";")
-#str(wine)
+wine<-read.csv("winequality-white.csv",sep=";")
+str(wine)
 ```
 
 Our task is thus to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
