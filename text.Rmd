@@ -410,7 +410,7 @@ barplot(rbind(tps.valid,tps.train), ylab = "Validation MSE", las = 2, ylim = c(0
 
 PCA7 gave the lowest thin plate spline validation MSE, `tps.valid[7]` (a `proc.base(tps.valid[7])` improvement over baseline). The PCA5, PCA7 and PCA9 models all have a very low training MSE, in the case of PCA9 this seems to cause overfitting while PCA7 performs suprisingly well, we do not have any intuitive explanation of this behavior.
 
-We now construct a set of local regressions models:
+We now construct a set of local regressions models, these models perform regression around every data point in the training data set together with its n-closest neighbors:
 
 ```{r, echo=FALSE}
 cust.col <- append(colors(distinct = TRUE)[5],colors(distinct = TRUE)[5 + seq(2,length(dataSets))*30])
@@ -450,20 +450,29 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
       validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
   validationMSE
 })
+
+# TODO: Tränings-MSE
 ```
 
 ```{r,eval=TRUE,cache=TRUE,warning=FALSE}
-generic.plot(neighbors, c(30, 680), c(0.3,0.8), "Number of neighbors", loc.reg.mse)
+generic.plot(neighbors, c(30, 680), c(0.45,0.75), "Number of neighbors", loc.reg.mse)
+abline(h = mse.linearV[1], lty = 2)
 ```
+
+We constructed our local regression models with 30 to 590 neighbors, stepping by 80. The best model was the normal data set with 190 neighbors, giving a validation MSE of `loc.reg.mse$normal[3]` corresponding to a `proc.base(loc.reg.mse$normal[3])`% improvement of baseline.
+
+Since local regression with as many neighbors as there are observations by definition is ordinary linear regression, and since the validation MSE for the linear regression of the normal data set was `mse.linearV[1]`, it seems as if the validation MSE of local regression for the normal data set converges from below to the validation MSE of linear regression as the number of neighbors grow.
+
+We continue with random forest models. A random forest model randomly chooses a number of features and thereafter uses bootstrap samples of the training data to construct a tree. By repeating this procedure, several trees are constructed and the prediction on a new data set is then done by averaging the prediction over the different trees (also note that each individual tree predicts by averaging the value of the training cases in the leaf which the new case belongs to).
 
 ```{r,eval=TRUE,cache=TRUE}
 require(randomForest)
 randomForest.models <- lapply(dataSets, function(x){
-  model<-randomForest(quality ~ ., data=x$train, ntree = 40)
+  model<-randomForest(quality ~ ., data=x$train, ntree = 500)
   tuned.model <- randomForest(quality ~ ., data=x$train, ntree =
                                 which.min(model$mse))
   pred<-predict(model,as.data.frame(x$validation))
-  list(validationMSE=MSE(pred,validation$quality),trainMSE=tuned.model$mse[length(tuned.model$mse)])
+  list(validationMSE=MSE(pred,validation$quality),trainMSE=tuned.model$mse[length(tuned.model$mse)],tree=which.min(model$mse))
 })
 ```
 
@@ -476,6 +485,36 @@ mse.forestT<- sapply(randomForest.models,function(x){
   x$trainMSE
 })
 barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomright"))
+```
+
+The normal data set with a validation MSE of `randomForest.models$normal$validationMSE` (`proc.base(randomForest.models$normal$validationMSE)`% lower than baseline) performs best, however the poly2 and poly3 data sets only performed slightly worse. Interestingly, the validation MSE for normal is lower than its training MSE, suggesting that overfitting does not occur.
+
+We continue by plotting how the validation and training MSE for the normal data set is affected by the number of trees (we have not tuned the models from which we have obtained the following results). The blue line represents the training MSE and the red represents validation:
+
+```{r,eval=TRUE,cache=TRUE}
+x <- dataSets$normal
+ntrees <- seq(10, 1000, 50)
+
+fixed.rf <- sapply(ntrees, function(y){
+  model<-randomForest(quality ~ ., data=x$train, ntree = y)
+  pred<-predict(model,as.data.frame(x$validation))
+  list(validationMSE=MSE(pred,validation$quality),trainMSE=model$mse[length(model$mse)])
+})
+```
+
+```{r,eval=TRUE,cache=TRUE}
+valid <- c()
+for (i in 1:length(fixed.rf[1,])){
+  valid[i] <- fixed.rf[1,][[i]]
+}
+
+tr <- c()
+for (i in 1:length(fixed.rf[2,])){
+  tr[i] <- fixed.rf[2,][[i]]
+  }
+
+plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE", xlab = "Number of trees")
+lines(seq(10, 1000, 50), tr, col = "blue")
 ```
 
 #5.x Regression models for classification
