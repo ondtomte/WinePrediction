@@ -9,10 +9,10 @@ output: html_document
 
 For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
 
-```{r}
-#download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wine-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
-wine<-read.csv("winequality-white.csv",sep=";")
-str(wine)
+if(exists("winequality-white.csv"))
+#download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wi#ne-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
+#wine<-read.csv("winequality-white.csv",sep=";")
+#str(wine)
 ```
 
 Our task is thus to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
@@ -365,7 +365,7 @@ lines(x=n,y=mse.train,type="l", col="red")
 
 The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our belief that we should not remove attributes.
 
-```{r,cache=TRUE,eval=FALSE}
+```{r,cache=TRUE,eval=TRUE,warning=FALSE}
 require(fields)
 # avoiding colinearity
 remove <- c(1,2,3,4)
@@ -404,8 +404,21 @@ barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab=
 ```
 
 LOG?
+```{r, echo=FALSE}
+cust.col <- append(colors(distinct = TRUE)[5],colors(distinct = TRUE)[5 + seq(2,length(dataSets))*30])
 
-```{r,eval=TRUE,cache=TRUE}
+generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
+    plot(x.cord, x[[1]], col = cust.col[1], lwd = 3, type = "l", xlim = x.lim, ylim =
+    y.lim, xlab = x.name, ylab = "Validation MCE")
+    for (i in 2:length(x)){
+      lines(x.cord, x[[i]], col = cust.col[i], lwd = 3)}
+    legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)}
+# COLOR PROBLEM, rainbow()...?
+```
+
+
+
+```{r,eval=TRUE,cache=TRUE,warning=FALSE}
 distMatrix=function(N,M){
   eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
   eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
@@ -415,7 +428,7 @@ distMatrix=function(N,M){
 temp.dataSets <- dataSets
 temp.dataSets$pca1 <- NULL
 
-neighbors <- seq(30,60,30)
+neighbors <- c(30,60,120,240,480)
 
 loc.reg.mse <- lapply(temp.dataSets, function(x){
 # PCA1
@@ -432,7 +445,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
   validationMSE
 })
 
-generic.plot(neighbors, c(30, 100), c(0,1), "Number of neighbors", loc.reg.mse)
+generic.plot(neighbors, c(30, 480), c(0.3,0.8), "Number of neighbors", loc.reg.mse)
 ```
 
 #5.x Regression models for classification
@@ -467,17 +480,6 @@ MCE <- function(x, y)
   {mean(x != y)}
 ```
 
-```{r, echo=FALSE}
-cust.col <- append(colors(distinct = TRUE)[5],colors(distinct = TRUE)[5 + seq(2,length(dataSets))*30])
-
-generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
-    plot(x.cord, x[[1]], col = cust.col[1], lwd = 3, type = "l", xlim = x.lim, ylim =
-    y.lim, xlab = x.name, ylab = "Validation MCE")
-    for (i in 2:length(x)){
-      lines(x.cord, x[[i]], col = cust.col[i], lwd = 3)}
-    legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)}
-# COLOR PROBLEM, rainbow()...?
-```
 
 	
 ```{r, echo = FALSE}
