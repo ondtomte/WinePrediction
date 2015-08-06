@@ -30,6 +30,10 @@ hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality
 
 #Note that the histogram plots the quality of the training observations, we will describe the process of #splitting the data into training, validation and test sets more thorughly later.
 
+```{r}
+MSE(mean(train$quality), validation$quality)
+```
+
 Since our training data is approximately normally distrubuted around 6 (with of variance of 0.7723022), our baseline model will perform quite well (this model yields a validation MSE of 0.7705384 and a test MSE of 0.7779192). Therefore, in order to justify the existence of our more sophisticated models, we want them to give a much lower MSE.
 
 How low we want to push down the MSE for us to be satisfied with our models is a difficult question and depends on how are models are supposed to be used. We believe a resonable purpose for our models is to act as a tool for beverage stores when they decide which wine they should keep in stock. However, it is still difficult to define how low the MSE should be for us to be content: When one is for example constructing a bridge, one will probably want the prediction of the target value to be precise enough so the probability of the bridge collapsing is negligent. In our case, our regression models can not really be said to have such a clear goal: We can basically only tell if one given model is better than another given model, not if they are good enough in an absolute sense.
@@ -63,6 +67,10 @@ sorted<-sort(euc, index.return = TRUE)$ix
 wine<-wine[-sorted[c(1:80,(length(sorted)-200):length(sorted))],]
 euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wine[,7]^2+wine[,8]^2+wine[,9]^2+wine[,10]^2+wine[,11]^2)
 lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
+```
+
+```{r}
+baseline.MSE <- MSE(mean(train$quality), validation$quality)
 ```
 
 The black line shows the Euclidean norm of all of the observations in the wine data set, ranging from the one with the lowest norm to the one with the highest. Since there are clearly a few observations deviating extremely in terms of their Euclidean norm, we chose to remove these observations and only keep the line segment marked in red. The following histogram shows the quality distribution of the removed observations:
@@ -102,7 +110,9 @@ Intuitively PCA defines a set of new base vectors of our data (corresponding to 
 
 Since the standard deviations decrease quite slowly without any sharp decline, except for the step from the 10th to the 11th principle component, there is not any natural cut-off point for how many principle components we should choose. We therefore choose to express our data using the first i principle components, for every i from 1 to 11, and create a new data frame for each such transformation.
 
-We also create new data frames where we have projected our original data onto 2nd and 3rd order polynomials, note that these polynomials contain 11 variables and thus have a lot of cross terms. We do not project onto polynomials of higher order because of computational limitations, and we do not believe that such polynomials would yield better models since they would most likely overfit to the training data. When we create models, we will simultaneously create a given model (for example linear regression) for all of these data frames.
+We also create new data frames where we have projected our original data onto 2nd and 3rd order polynomials, note that these polynomials contain 11 variables and thus have a lot of cross terms. We call these these data frames poly2 and poly3 respectively, while our original data frame is called normal. We do not project onto polynomials of higher order because of computational limitations, and we do not believe that such polynomials would yield better models since they would most likely overfit to the training data. When we create models, we will simultaneously create a given model (for example linear regression) for all of these data frames.
+
+## PCA
 
 ```{r, echo=FALSE}
 #Create data set with diffrent attribute
@@ -198,15 +208,31 @@ MSE <- function(x,y){
 We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting the data shows a slight such tendency):
 
 ```{r}
-lm.ind <- list()
+lm.models <- list()
 for (i in 1:11) {
   model<-lm(as.formula(paste("quality~", names(train)[i])),train)
   pred<-predict(model,validation)
-  lm.ind[[names(train)[i]]] <- list(validationMSE=MSE(pred,validation[12]),
+  lm.models[[names(train)[i]]] <- list(validationMSE=MSE(pred,validation[12]),
   trainMSE=mean(model$residuals^2))}
 ```
 
-The models performed badly, the only model with descent performance was the alcohol model (note that alcohol occured frequently in the correlation scores).
+```{r}
+mse.lm.models<-sapply(lm.models,function(x){
+  x$validationMSE
+})
+
+barplot(mse.lm.models,main="Single Variable LM Models", ylab="Validation MSE",las=2, ylim = c(0,.9))
+abline(h = baseline.MSE, lty = 2)
+text(12,MSE(mean(train$quality), validation$quality)+0.05,"baseline = 0.7759")
+
+# MAGISK SIFFRA
+```
+
+```{r}
+proc.base <- function(x){100 * (baseline.MSE - x)/baseline.MSE}
+```
+
+The models performed badly, the only model with descent performance was the alcohol model (note that alcohol occured frequently in the correlation scores) with a validation MSE of `mse.lm.models[11]` corresponding to a `proc.base(mse.lm.models[11])`% procentual improvement from baseline.
 
 We continue with more advanced linear models:
 
@@ -235,9 +261,11 @@ mse.linearCV<-sapply(linear.models,function(x){
 barplot(t(cbind(mse.linearV,mse.linearT,mse.linearCV)),main="Linear regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train","Train CV"),args.legend = list(x="bottomright"))
 ```
 
-The difference in validation MSE between the best models is quite small, but polynomial regression of degree 2 performs best. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are relevant (it can also be noted that using all PCA components gives the same result as performing linear regression on the original data, as expected).
+Poly2 performs best with a validation MSE of `mse.linearV[2]` (`proc.base(mse.linearV[2])`% improvement over baseline).
 
-We also construct a set of lasso models, these models give a penalty on the absolute value of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as $/lambda$ grows larger) and might also thus give us information regarding if some of our attributes are redundant:
+The difference in validation MSE between the best models is quite small. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are relevant (it can also be noted that using all PCA components gives the same result as performing linear regression on the original data, as expected).
+
+We also construct a set of lasso models, these models give a penalty on the absolute value of the linear coefficients, a parameter lambda decides the weight of the penalty. These models effectively corresponds to successively removing our attributes (as $\lambda$ grows larger) and might also thus give us information regarding if some of our attributes are redundant:
 
 ```{r, cache=TRUE}
 require(lars)
@@ -254,31 +282,22 @@ lasso.models <- lapply( dataSets, function(x){
 })
 ```
 
-The lasso models corresponding to polynomial regression of degree 3 gave the lowest MSE. This can actually be said to match the results from our ordinary linear models: Lasso regression on the poly3 data approximately corresponds to successively removing terms from the fitted 3rd order polynomial. Since polynomial regression of degree 2 gave the best linear model, and polynomial regression of degree 3 gave the second best, it seems reasonable to find an even better polynomial fit if we let the degree of the polynomial "lie between" 2 and 3.
-
-```{r}
+```{r, echo = FALSE}
 mse.lassoV<-sapply(lasso.models,function(x){
   x$bestMse$min
 })
 
 barplot(mse.lassoV,main="Best Lasso Model", ylab="Validation MSE",las=2)
-
 ```
+
+The lasso models corresponding to polynomial regression of degree 3 gave the lowest validation MSE (`mse.lassoV[3]`, a `proc.base(mse.lassoV[3])`%) improvement over the baseline). This can actually be said to match the results from our ordinary linear models: Lasso regression on the poly3 data approximately corresponds to successively removing terms from the fitted 3rd order polynomial. Since polynomial regression of degree 2 gave the best linear model, and polynomial regression of degree 3 gave the second best, it seems reasonable to find an even better polynomial fit if we let the degree of the polynomial "lie between" 2 and 3.
 
 ```{r}
-sum(coef(lasso.models$poly3$model)[which.min(lasso.models$poly3$validationMSE),]>0)
-ncol(coef(lasso.models$poly3$model))
+lambda<-rev(c(lasso.models$poly3$model$lambda,0))
+plot(x=lambda,y=rev(lasso.models$poly3$validationMSE),type="l",xlab=expression(lambda),ylab="Validation MSE", main="Lasso Poly3")
 ```
 
-```{r}
-lambda<-c(0,lasso.models$poly3$model$lambda)
-lambda<-sort(lambda)
-plot(x=lambda,y=lasso.models$poly3$validationMSE,type="l",xlab=expression(lambda),ylab="Validation MSE", main="Lasso Poly3")
-```
-
-For the untransformed data, the more attributes that were removed the higher the MSE became. This fact also indicates that all of the attributes are relevant.
-
-Moreover, we also construct ridge models which penalize the absolute value of the linear coefficients:
+Moreover, we also construct ridge models which penalize the square of the linear coefficients:
 
 ```{r,eval=TRUE,cache=TRUE}
 predict.ridge<-function(model,x,i){
@@ -312,6 +331,12 @@ mse.ridgeT<-sapply(ridge.models,function(x){
 barplot(t(cbind(mse.ridgeV,mse.ridgeT)),main="Best Ridge regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomright"))
 ```
 
+The best ridge model was poly3 with $\lambda$ equal to `seq(0,1500,by=10)[which.min(ridge.models$poly3$validationMSE)]`, this model gave a validation MSE of `mse.ridgeV[3]` (`proc.base(mse.ridgeV[3])`% better than baseline).
+
+TODO: Fundera på rimlighet gällande lambda i lasso vs ridge.
+
+The following plots show the how lambda affects the training and validation MSE for four selected data sets:
+
 ```{r, echo=FALSE}
 par(mfrow=c(2,2))
 plot(y=ridge.models$poly3$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=expression(lambda),ylim = c(0.35,0.58),col="red",main="Poly3")
@@ -326,7 +351,6 @@ lines(y=ridge.models$normal$validationMSE,x=seq(0,1500,by=10),type="l",col="blue
 plot(y=ridge.models$pca4$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=expression(lambda),ylim = c(min(ridge.models$pca4$trainMSE),max(ridge.models$pca4$validationMSE)),col="red",main="PCA4")
 lines(y=ridge.models$pca4$validationMSE,x=seq(0,1500,by=10),type="l",col="blue")
 ```
-
 
 ```{r,eval=FALSE, echo=FALSE}
 #Learninng rate
@@ -363,7 +387,9 @@ plot(x=n,y=mse.validation,type="l",col="blue",ylim=c(min(mse.train),min(c(2,max(
 lines(x=n,y=mse.train,type="l", col="red")
 ```
 
-The fact that the linear coefficients do not quickly shrink towards zero even when we penalize their absolute value further reinforces our belief that we should not remove attributes.
+We know perform a thin plate spline on the PCA1 to PCA10 data sets, we ignore the other data sets for the construction of this model since they give error messages regarding colinearity. The thin plate spline creates a smooth surface approximating the data points, technically this is done by projecting the data points to a higher dimensional space and then applying ridge regression. The lambda parameter of the ridge regression defines the smoothness of this surface and is chosen by the following function through cross-validation.
+
+TODO: Varför använde inte övningar?
 
 ```{r,cache=TRUE,eval=TRUE,warning=FALSE}
 require(fields)
@@ -378,7 +404,56 @@ tps.models <- lapply(dataSets[-remove], function(x){
 
 ```{r,cache=TRUE,eval=FALSE}
 tps.valid <-rev(sapply(tps.models, function(x){x$validationMSE}))
-barplot(tps.valid, ylab = "Validation MSE", las = 2, ylim = c(0, 1))
+tps.train <-rev(sapply(tps.models, function(x){x$trainMSE}))
+barplot(rbind(tps.valid,tps.train), ylab = "Validation MSE", las = 2, ylim = c(0, 1), beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomleft"))
+```
+
+PCA7 gave the lowest thin plate spline validation MSE, `tps.valid[7]` (a `proc.base(tps.valid[7])` improvement over baseline). The PCA5, PCA7 and PCA9 models all have a very low training MSE, in the case of PCA9 this seems to cause overfitting while PCA7 performs suprisingly well, we do not have any intuitive explanation of this behavior.
+
+We now construct a set of local regressions models:
+
+```{r, echo=FALSE}
+cust.col <- append(colors(distinct = TRUE)[5],colors(distinct = TRUE)[5 + seq(2,length(dataSets))*30])
+
+generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
+    plot(x.cord, x[[1]], col = cust.col[1], lwd = 3, type = "l", xlim = x.lim, ylim =
+    y.lim, xlab = x.name, ylab = "Validation MCE")
+    for (i in 2:length(x)){
+      lines(x.cord, x[[i]], col = cust.col[i], lwd = 3)}
+    legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)}
+# COLOR PROBLEM, rainbow()...?
+```
+
+```{r,eval=TRUE,cache=TRUE,warning=FALSE}
+distMatrix=function(N,M){
+  eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
+  eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
+  sqrt(eM%*%t(N^2)-2*M%*%t(N)+M^2%*%t(eN))
+}
+
+temp.dataSets <- dataSets
+temp.dataSets$pca1 <- NULL
+
+neighbors <- seq(30,600, 80)
+
+loc.reg.mse <- lapply(temp.dataSets, function(x){
+# PCA1
+  matrix <- as.matrix(as.data.frame(x$train))
+  distance<-distMatrix(matrix[,-ncol(matrix)],as.matrix(as.data.frame(x$validation)))
+  pred <- c()
+  validationMSE <- c()
+  for (r in neighbors){
+    for(i in 1:nrow(validation)){
+      n<-sort(distance[i,],index.return = TRUE)$ix[1:r]
+      mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
+      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])}
+      validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
+  validationMSE
+})
+```
+
+```{r,eval=TRUE,cache=TRUE,warning=FALSE}
+generic.plot(neighbors, c(30, 680), c(0.3,0.8), "Number of neighbors", loc.reg.mse)
 ```
 
 ```{r,eval=TRUE,cache=TRUE}
@@ -401,51 +476,6 @@ mse.forestT<- sapply(randomForest.models,function(x){
   x$trainMSE
 })
 barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomright"))
-```
-
-LOG?
-```{r, echo=FALSE}
-cust.col <- append(colors(distinct = TRUE)[5],colors(distinct = TRUE)[5 + seq(2,length(dataSets))*30])
-
-generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
-    plot(x.cord, x[[1]], col = cust.col[1], lwd = 3, type = "l", xlim = x.lim, ylim =
-    y.lim, xlab = x.name, ylab = "Validation MCE")
-    for (i in 2:length(x)){
-      lines(x.cord, x[[i]], col = cust.col[i], lwd = 3)}
-    legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)}
-# COLOR PROBLEM, rainbow()...?
-```
-
-
-
-```{r,eval=TRUE,cache=TRUE,warning=FALSE}
-distMatrix=function(N,M){
-  eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
-  eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
-  sqrt(eM%*%t(N^2)-2*M%*%t(N)+M^2%*%t(eN))
-}
-
-temp.dataSets <- dataSets
-temp.dataSets$pca1 <- NULL
-
-neighbors <- c(30,60,120,240,480)
-
-loc.reg.mse <- lapply(temp.dataSets, function(x){
-# PCA1
-  matrix <- as.matrix(as.data.frame(x$train))
-  distance<-distMatrix(matrix[,-ncol(matrix)],as.matrix(as.data.frame(x$validation)))
-  pred <- c()
-  validationMSE <- c()
-  for (r in neighbors){
-    for(i in 1:nrow(validation)){
-      n<-sort(distance[i,],index.return = TRUE)$ix[1:r]
-      mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
-      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])}
-      validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
-  validationMSE
-})
-
-generic.plot(neighbors, c(30, 480), c(0.3,0.8), "Number of neighbors", loc.reg.mse)
 ```
 
 #5.x Regression models for classification
