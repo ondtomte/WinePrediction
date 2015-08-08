@@ -30,7 +30,7 @@ hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality
 
 #Note that the histogram plots the quality of the training observations, we will describe the process of #splitting the data into training, validation and test sets more thorughly later.
 
-```{r}
+```{r,eval=FALSE}
 MSE(mean(train$quality), validation$quality)
 ```
 
@@ -57,7 +57,7 @@ The data set did not contain any unknown values. Initially, we did not search fo
 
 We searched for outliers (i.e. observations deviating extremely) by examining the Euclidean norm of the attributes of the observations:
 
-```{r,echo=FALSE}
+```{r,echo=FALSE,cache=TRUE}
 require(scales)
 wine <- cbind(as.data.frame(scale(wine[,-12],center = TRUE)),quality=wine[,12])
 wine2 <- wine
@@ -67,6 +67,22 @@ sorted<-sort(euc, index.return = TRUE)$ix
 wine<-wine[-sorted[c(1:80,(length(sorted)-200):length(sorted))],]
 euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wine[,7]^2+wine[,8]^2+wine[,9]^2+wine[,10]^2+wine[,11]^2)
 lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
+```
+
+```{r, echo=FALSE}
+MSE <- function(x,y){
+  mean((x - y)^2, na.rm = TRUE)}
+```
+```{r,cache=TRUE}
+GOOD_WINE=5
+library(caTools)
+set.seed(24)
+s <- sample.split(Y = wine$quality,SplitRatio = 0.8)
+test <- wine[s==FALSE,]
+trainValidate <-wine[s==TRUE,]
+s <- sample.split(Y = trainValidate$quality,SplitRatio = 0.8)
+validation <- trainValidate[s==FALSE,]
+train <- trainValidate[s==TRUE,]
 ```
 
 ```{r}
@@ -85,18 +101,6 @@ RUBRIK
 
 The wine data set was split into training, validation and test sets by doing a random 64-16-20 split while preserving relative ratios of different labels of the target variable (note that this split is done by first doing a 80-20 split into a combined training-validation set and test set, followed by a 80-20 split of the combined training-validation set). For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
 
-```{r}
-GOOD_WINE=5
-library(caTools)
-set.seed(24)
-s <- sample.split(Y = wine$quality,SplitRatio = 0.8)
-test <- wine[s==FALSE,]
-trainValidate <-wine[s==TRUE,]
-s <- sample.split(Y = trainValidate$quality,SplitRatio = 0.8)
-validation <- trainValidate[s==FALSE,]
-train <- trainValidate[s==TRUE,]
-```
-
 #3 & 4. FEATURE IMPORTANCE SCORES / PCA
 
 We used PCA to find the successive orthogonal directions of maximum variance:
@@ -114,7 +118,7 @@ We also create new data frames where we have projected our original data onto 2n
 
 ## PCA
 
-```{r, echo=FALSE}
+```{r, echo=FALSE,cache=TRUE}
 #Create data set with diffrent attribute
 trainPoly<-lapply(2:3,function(x){
   foo<- with(train,polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = x,raw=TRUE))
@@ -162,7 +166,7 @@ dataSets$normal$validation$quality=NULL
 
 We examine the linear dependency between the attributes and return those who are most linearly dependent (those with largest absolute value of correlation):
 
-```{r}
+```{r,echo=FALSE}
 #cor
 cor_wine<-cor(train)
 cor_wine[lower.tri(cor_wine,diag=TRUE)] <-NA
@@ -199,11 +203,6 @@ The fact that density has the highest mutual information criterion intuitively m
 #5. MODELS
 
 ##5.1 REGRESSION
-
-```{r, echo=FALSE}
-MSE <- function(x,y){
-  mean((x - y)^2, na.rm = TRUE)}
-```
 
 We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting the data shows a slight such tendency):
 
