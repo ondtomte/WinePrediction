@@ -452,6 +452,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
 })
 
 # TODO: Tränings-MSE
+loc.reg.Vmse <- sapply(loc.reg.mse, function(x){min(x)})
 ```
 
 ```{r,eval=TRUE,cache=TRUE,warning=FALSE}
@@ -471,7 +472,7 @@ randomForest.models <- lapply(dataSets, function(x){
   model<-randomForest(quality ~ ., data=x$train, ntree = 500)
   tuned.model <- randomForest(quality ~ ., data=x$train, ntree =
                                 which.min(model$mse))
-  pred<-predict(model,as.data.frame(x$validation))
+  pred<-predict(tuned.model,as.data.frame(x$validation))
   list(validationMSE=MSE(pred,validation$quality),trainMSE=tuned.model$mse[length(tuned.model$mse)],tree=which.min(model$mse))
 })
 ```
@@ -515,6 +516,32 @@ for (i in 1:length(fixed.rf[2,])){
 
 plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE", xlab = "Number of trees")
 lines(seq(10, 1000, 50), tr, col = "blue")
+```
+
+```{r,eval=TRUE,cache=TRUE}
+best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
+
+barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
+legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
+```
+
+```{r,eval=TRUE,cache=TRUE}
+baseline.MSE.new <- rep(NA, 13)
+baseline.MSE.new[1] <- baseline.MSE
+
+tps.valid.new <- rep(NA, 4)
+tps.valid.new <- c(tps.valid.new, rev(tps.valid))
+
+loc.reg.Vmse.new <- c(loc.reg.Vmse, NA)
+
+mse.ridgeV.new <- c(mse.ridgeV, NA)
+
+
+bar.matrix <- matrix(c(baseline.MSE.new, mse.linearV, mse.lassoV, mse.ridgeV.new, tps.valid.new, loc.reg.Vmse.new, mse.forestV, rep(NA, 13), rep(NA, 13)), ncol = 9)
+
+
+barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col)
+legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
 ```
 
 #5.x Regression models for classification
