@@ -2,7 +2,7 @@
 title: "Project"
 author: "Simon Almerstr?m Przybyl & Daniel ?hman"
 date: "July 27th 2015"
-output: html_document
+output: word_document
 ---
 
 #1. INTRO / EXPLAIN DATA SET AND TASK
@@ -29,6 +29,10 @@ hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality
 ```
 
 #Note that the histogram plots the quality of the training observations, we will describe the process of #splitting the data into training, validation and test sets more thorughly later.
+```{r, echo=FALSE}
+MSE <- function(x,y){
+  mean((x - y)^2, na.rm = TRUE)}
+```
 
 ```{r,eval=FALSE}
 MSE(mean(train$quality), validation$quality)
@@ -69,10 +73,7 @@ euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wi
 lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
 ```
 
-```{r, echo=FALSE}
-MSE <- function(x,y){
-  mean((x - y)^2, na.rm = TRUE)}
-```
+
 ```{r,cache=TRUE}
 GOOD_WINE=5
 library(caTools)
@@ -243,7 +244,7 @@ linear.models <- lapply(dataSets, function(x){
   cv<-cv.glm(as.data.frame(x$train), model, K = 5)
   list(validationMSE=MSE(pred,validation[12]),
   trainMSE=mean(model$residuals^2),
-  trainCV=cv$delta[1],mceValidation=mean((pred<GOOD_WINE)!=(validation$quality<GOOD_WINE)),model=model)
+  trainCV=cv$delta[1],mceValidation=mean((pred>GOOD_WINE)!=(validation$quality>GOOD_WINE)),model=model)
 })
 ```
 ```{r, echo=FALSE}
@@ -357,7 +358,7 @@ We know perform a thin plate spline on the PCA1 to PCA10 data sets, we ignore th
 
 TODO: Varför använde inte övningar?
 
-```{r,cache=TRUE,eval=FALSE,warning=FALSE}
+```{r,cache=TRUE,eval=FALSE,warning=FALSE,message=FALSE}
 require(fields)
 # avoiding colinearity
 remove <- c(1,2,3,4)
@@ -412,8 +413,10 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
     for(i in 1:nrow(validation)){
       n<-sort(distance[i,],index.return = TRUE)$ix[1:r]
       mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
-      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])}
-      validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
+      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])
+    }
+    validationMSE <- c(validationMSE, MSE(pred,validation[12]))
+  }
   validationMSE
 })
 
@@ -421,7 +424,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
 loc.reg.Vmse <- sapply(loc.reg.mse, function(x){min(x)})
 ```
 
-```{r,eval=TRUE,cache=TRUE,warning=FALSE}
+```{r,eval=FALSE,cache=TRUE,warning=FALSE}
 generic.plot(neighbors, c(30, 680), c(0.45,0.75), "Number of neighbors", loc.reg.mse)
 abline(h = mse.linearV[1], lty = 2)
 ```
@@ -440,7 +443,7 @@ randomForest.models <- lapply(dataSets, function(x){
                                 which.min(model$mse))
   predValidation<-predict(tuned.model,x$validation)
   predTrain<-predict(tuned.model,x$train)
-  list(validationMSE=MSE(predValidation,validation$quality),trainMSE=MSE(predTrain,x$train$quality),tree=which.min(model$mse),model=tuned.model)
+  list(validationMSE=MSE(predValidation,validation$quality),trainMSE=MSE(predTrain,x$train$quality),tree=which.min(model$mse),model=tuned.model,validationMCE=mean(((predValidation>GOOD_WINE)!=(validation$quality>GOOD_WINE))))
 
 })
 ```
@@ -487,10 +490,14 @@ plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE",
 lines(seq(10, 1000, 50), tr, col = "blue")
 ```
 ##5.2
+```{r,eval=FALSE,cache=TRUE}
+best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
 
-We now compare the different regression models against each other:
+barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
+legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
+```
 
-```{r,eval=TRUE,cache=TRUE}
+```{r,eval=FALSE,cache=TRUE}
 baseline.MSE.new <- rep(NA, 13)
 baseline.MSE.new[1] <- baseline.MSE
 
@@ -509,21 +516,6 @@ barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","L
 legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
 ```
 
-The random forest models performed best, for this model the normal feature set gave the lowest validation MSE with poly2 and poly3 being very close behind. The difference in performance between these feature sets for random forest models is so small that it is more or less negligent, however another advantage of the normal feature set is the fact that this feature set is considerably less computationally demanding than the polynomial feature sets.
-
-Our chosen model is therefore the random forest model with the normal feature set and having 210 trees.
-
-To summarize our regression task, before we proceed with testing our chosen model, we now also plot how the best feature set for each model perform compare to each other:
-
-```{r,eval=TRUE,cache=TRUE}
-best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
-
-barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
-legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
-```
-
-We now test our chosen model:
-
 ```{r,eval=TRUE,cache=TRUE}
 trees <- 210
 x <- dataSets$normal
@@ -537,8 +529,6 @@ predTest<-predict(final.rf.model, test[,-12])
 final.rf.model.list <- list(trainMSE=MSE(predTrain,train[,12]),validationMSE=MSE(predValidation,validation$quality), testMSE=MSE(predTest,test$quality))
 ```
 
-The obtained test MSE is `proc.base(final.rf.model.list$testMSE)`% lower than our baseline, and thus satisifies our goal of a 50% MSE reduction. The training MSE of our chosen model is very close to zero, suggesting a risk for overfitting, however the validation and test MSEs are low and very close to each other, implying that the model seem to generalize well to unseen data sets, the following left plot show these MSEs. To the right we plot how the predicted mean values of the model compares to the actual, we calculate this as an easy way to investigate if our model has a tendency to predict too low or too high values:
-
 ```{r,eval=TRUE,cache=TRUE}
 par(mfrow=c(1,2))
 
@@ -550,11 +540,12 @@ barplot(mean.matrix, las = 2, ylab = "Mean Quality", beside = TRUE, ylim = c(0,8
 legend("topright", c("Actual", "Predicted"), col= c(2,3), lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
-As expected (since the MSE of our model is very low), the actual means and the predicted means are very close to each other and we can not see any meaningful positive or negative tendency.
+`proc.base(final.rf.model.list$testMSE)`
 
 #5.3 Learning rate
-After finding a good model we wanted to answers if more data would create an even better model. To do this we calculate and plot a diagram with MSE as an function of training data. As you can see the validation MSE is still shrinking fast:
-
+After finding a good model we wanted to answers if more data would create an even better model.
+To do this we calculated and plotted a diagram with MSE as an function of training data.
+As you can see the validation MSE is still shrinking fast. 
 ```{r,eval=FALSE, echo=FALSE,message=FALSE}
 require(randomForest)
 require(caTools)
@@ -575,7 +566,7 @@ l<-lapply(toTest,function(x){
     })
 ```
 
-```{r}
+```{r,eval=FALSE}
 t<- sapply(l,function(x){
   x$trainMSE
 })
@@ -586,12 +577,10 @@ plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.6),ylab="M
 lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
-
-The conclusion of this learning curve is therefore that access to more observations would improve the model even further.
-
 #5.x Regression models for classification
 In a way to establish a new better baseline for the classification part. We decided to try our regression models for classification.
 ```{r,eval=FALSE}
+par(mfrow=c(3,2))
 #Linear
 linear.mce<-sapply(linear.models,function(x){
   x$mceValidation
@@ -610,7 +599,23 @@ ridge.mce<- sapply(ridge.models,function(x){
 })
 barplot(ridge.mce,las=2,main="Ridge models",ylim = c(0,0.45))
 
+#Random Forest
+rf.mce<-sapply(randomForest.models,function(x){
+  x$validationMCE
+})
+barplot(rf.mce,las=2,main="Random Forest",ylim = c(0,0.45))
 
+#TPS
+tps.mce<- sapply(tps.models,function(x){
+  x$mceValidation
+})
+barplot(tps.mce,las=2,main="TPS",ylim = c(0,0.45))
+
+#Local Regression
+#local.mce<- sapply(tps.models,function(x){
+#  x$mceValidation
+#})
+#barplot(tps.mce,las=2,main="Local Regression",ylim = c(0,0.45))
 ```
 
 ##5.1 CLASSIFICATION
@@ -624,7 +629,7 @@ MCE <- function(x, y)
 
 	
 ```{r, echo = FALSE}
-MIN_PRECISION=0.75
+#MIN_PRECISION=0.75
 validation$binary.quality <- validation$quality >= 6
 validation$quality=NULL
 validation$binary.quality<-as.factor(validation$binary.quality)
@@ -667,7 +672,7 @@ The LDA model calculates the mean of the attributes for a given class, and then 
 
 The QDA model works similarly but in this case the variance is not set to 1 but instead to the variance of the attributes of the each individual class. 
 
-```{r,eval=FALSE}
+```{r,eval=FALSE,cache=TRUE}
 require(MASS)
 
 # remove poly2 and poly3?
@@ -692,7 +697,7 @@ RESULTS
 
 The following support vector machine (SVM) models find the hyper-plane which best separates the classes given the specified hyper-parameters. Note that we only construct this model with the normal data set due to the large number of hyper-parameters.
 
-```{r,eval=TRUE}
+```{r,eval=TRUE,cache=TRUE}
 require(e1071)
 
 #Hyperparameters
@@ -722,7 +727,7 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
   })))
 
 
-df[order(as.numeric(df$validationError)),]
+df[order(as.numeric(df$validationError))[5],]
 
 # barplot 
 # tabell istället? Titta närmare på radial med fler hyperparametrar (coef0 och degree ändras inte?):
@@ -744,7 +749,7 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
   })))
 
 
-df[order(as.numeric(df$validationError)),]
+df[order(as.numeric(df$validationError))[3],]
 
 ```	
 
@@ -768,8 +773,8 @@ trees <- c("5" = 5, "10" = 10, "20" = 20, "50" = 50, "100" = 100, "200" = 200)
 randomForest.c.models <- lapply(dataSets, function(x){
   lapply(trees, function(y){
     model<-randomForest(binary.quality ~ ., x$train, ntree = y)
-    tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
-                                  which.min(model$err.rate[,1]))
+#   tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
+#                                  which.min(model$err.rate[,1]))
     pred<-predict(model,as.data.frame(x$validation))
     MCE(pred,validation$binary.quality)
   })
@@ -790,7 +795,7 @@ require(ada)
 dataSets.foo <- dataSets
 dataSets.foo$pca1 <- NULL
 
-iterations <- c("1" = 1, "5" = 5, "10" = 10, "15" = 15, "20" = 20, "30" = 30, "40" = 40)
+iterations <- c("1" = 1, "5" = 5, "10" = 10, "15" = 15, "20" = 20)
 
 ada.models <- lapply(dataSets.foo, function(x){
   lapply(iterations, function(y){
@@ -800,10 +805,8 @@ ada.models <- lapply(dataSets.foo, function(x){
     MCE(pred,validation$binary.quality)
   })
 })
-```
 
-```{r,eval=FALSE}
-generic.plot(iterations, c(20,43), c(.16,.33), "Number of iterations", ada.models)
+generic.plot(iterations, c(1,23), c(.18,.33), "Number of iterations", ada.models)
 
 # gör poly3 med många och tuned?
 ```
@@ -851,7 +854,7 @@ l<-lapply(toTest,function(x){
     })
 ```
 
-```{r}
+```{r,eval=FALSE}
 t<- sapply(l,function(x){
   x$trainMCE
 })
@@ -862,7 +865,6 @@ plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.3),ylab="M
 lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
-
 
 ##Results and disc
 
@@ -892,12 +894,11 @@ legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.60)
 ```
 
 ```{r}
-best.class.V <- c("baseline" = baseline.misclass, "KNN" = min(knn.models$poly3), "LDA" = lda.qda.models$poly3$lda.validation.MCE, "QDA" = lda.qda.models$poly3$qda.validation.MCE, "SVM" =  df$validationError[[13]], "RF" = randomForest.c.models$poly3$`100`, "ADA" = ada.models$poly3$`30`, "Log. reg." = min(1 - performance(x[[2]], "acc")@y.values[[1]]))
-
-barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.col[3],cust.col[1],cust.col[3],cust.col[3],cust.col[2]), ylim = c(0,0.4), main = "Validation MCE, Best Data Sets")
-legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
+test$binary.quality<- test$quality>GOOD_WINE
+test$quality<- NULL
+randomForest.c.models$
 ```
-
+##Results and disc
 best model best (lowest mce) feature set.
 
 
