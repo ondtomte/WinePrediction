@@ -442,6 +442,7 @@ randomForest.models <- lapply(dataSets, function(x){
   predValidation<-predict(tuned.model,x$validation)
   predTrain<-predict(tuned.model,x$train)
   list(validationMSE=MSE(predValidation,validation$quality),trainMSE=MSE(predTrain,x$train$quality),tree=which.min(model$mse),model=tuned.model)
+
 })
 ```
 
@@ -467,7 +468,8 @@ ntrees <- seq(10, 1000, 50)
 fixed.rf <- sapply(ntrees, function(y){
   model<-randomForest(quality ~ ., data=x$train, ntree = y)
   pred<-predict(model,as.data.frame(x$validation))
-  list(validationMSE=MSE(pred,validation$quality),trainMSE=model$mse[length(model$mse)])
+  predTrain<-predict(model, x$train)
+  list(validationMSE=MSE(pred,validation$quality),trainMSE=MSE(predTrain,train[,12]))
 })
 ```
 
@@ -482,7 +484,7 @@ for (i in 1:length(fixed.rf[2,])){
   tr[i] <- fixed.rf[2,][[i]]
   }
 
-plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE", xlab = "Number of trees")
+plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE", xlab = "Number of trees", ylim = c(0.05,0.42))
 lines(seq(10, 1000, 50), tr, col = "blue")
 ```
 ##5.2
@@ -511,6 +513,33 @@ bar.matrix <- matrix(c(baseline.MSE.new, mse.linearV, mse.lassoV, mse.ridgeV.new
 barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col)
 legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
 ```
+
+```{r,eval=TRUE,cache=TRUE}
+trees <- 210
+x <- dataSets$normal
+
+final.rf.model<-randomForest(quality ~ ., data=x$train, ntree = trees)
+
+predValidation<-predict(final.rf.model,x$validation)
+predTrain<-predict(final.rf.model, x$train)
+predTest<-predict(final.rf.model, test[,-12])
+
+final.rf.model.list <- list(trainMSE=MSE(predTrain,train[,12]),validationMSE=MSE(predValidation,validation$quality), testMSE=MSE(predTest,test$quality))
+```
+
+```{r,eval=TRUE,cache=TRUE}
+par(mfrow=c(1,2))
+
+barplot(c("Training" = final.rf.model.list$trainMSE, "Validation" = final.rf.model.list$validationMSE, "Test" = final.rf.model.list$testMSE), las = 2, ylab = "MSE", main = "RF, 210 trees", ylim = c(0,0.40))
+
+mean.matrix <- matrix(c(mean(predTrain), mean(train$quality), mean(predValidation), mean(validation$quality), mean(predTest), mean(test$quality)), ncol = 3)
+
+barplot(mean.matrix, las = 2, ylab = "Mean Quality", beside = TRUE, ylim = c(0,8), names = c("Training","Validation","Test"), col = c(2,3), main = "RF Performance")
+legend("topright", c("Actual", "Predicted"), col= c(2,3), lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
+```
+
+`proc.base(final.rf.model.list$testMSE)`
+
 #5.3 Learning rate
 After finding a good model we wanted to answers if more data would create an even better model.
 To do this we calculated and plotted a diagram with MSE as an function of training data.
