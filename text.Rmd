@@ -485,7 +485,31 @@ plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE",
 lines(seq(10, 1000, 50), tr, col = "blue")
 ```
 ##5.2
+```{r,eval=TRUE,cache=TRUE}
+best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
 
+barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
+legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
+```
+
+```{r,eval=TRUE,cache=TRUE}
+baseline.MSE.new <- rep(NA, 13)
+baseline.MSE.new[1] <- baseline.MSE
+
+tps.valid.new <- rep(NA, 4)
+tps.valid.new <- c(tps.valid.new, rev(tps.valid))
+
+loc.reg.Vmse.new <- c(loc.reg.Vmse, NA)
+
+mse.ridgeV.new <- c(mse.ridgeV, NA)
+
+
+bar.matrix <- matrix(c(baseline.MSE.new, mse.linearV, mse.lassoV, mse.ridgeV.new, tps.valid.new, loc.reg.Vmse.new, mse.forestV, rep(NA, 13), rep(NA, 13)), ncol = 9)
+
+
+barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col)
+legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
+```
 #5.3 Learning rate
 After finding a good model we wanted to answers if more data would create an even better model.
 To do this we calculated and plotted a diagram with MSE as an function of training data.
@@ -521,34 +545,6 @@ plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.6),ylab="M
 lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
-
-
-```{r,eval=TRUE,cache=TRUE}
-best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
-
-barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
-legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
-```
-
-```{r,eval=TRUE,cache=TRUE}
-baseline.MSE.new <- rep(NA, 13)
-baseline.MSE.new[1] <- baseline.MSE
-
-tps.valid.new <- rep(NA, 4)
-tps.valid.new <- c(tps.valid.new, rev(tps.valid))
-
-loc.reg.Vmse.new <- c(loc.reg.Vmse, NA)
-
-mse.ridgeV.new <- c(mse.ridgeV, NA)
-
-
-bar.matrix <- matrix(c(baseline.MSE.new, mse.linearV, mse.lassoV, mse.ridgeV.new, tps.valid.new, loc.reg.Vmse.new, mse.forestV, rep(NA, 13), rep(NA, 13)), ncol = 9)
-
-
-barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col)
-legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
-```
-
 #5.x Regression models for classification
 In a way to establish a new better baseline for the classification part. We decided to try our regression models for classification.
 ```{r,eval=FALSE}
