@@ -91,10 +91,10 @@ library(caTools)
 set.seed(24)
 s <- sample.split(Y = wine$quality,SplitRatio = 0.8)
 test <- wine[s==FALSE,]
-temp <-wine[s==TRUE,]
-s <- sample.split(Y = temp$quality,SplitRatio = 0.8)
-validation <- temp[s==FALSE,]
-train <- temp[s==TRUE,]
+trainValidate <-wine[s==TRUE,]
+s <- sample.split(Y = trainValidate$quality,SplitRatio = 0.8)
+validation <- trainValidate[s==FALSE,]
+train <- trainValidate[s==TRUE,]
 ```
 
 #3 & 4. FEATURE IMPORTANCE SCORES / PCA
@@ -352,40 +352,7 @@ plot(y=ridge.models$pca4$trainMSE,x=seq(0,1500,by=10),type="l",ylab="MSE",xlab=e
 lines(y=ridge.models$pca4$validationMSE,x=seq(0,1500,by=10),type="l",col="blue")
 ```
 
-```{r,eval=FALSE, echo=FALSE}
-#Learninng rate
-#TODO Make a function
-#plot.learning.rate<-function(model,data,min,max){
-#  set.seed(23)
-#  
-#  
-#}
-set.seed(23)
-n<-seq(500,4000, by=100)
-mse.train<- vector()
-mse.validation<-vector()
-for(i in n){
-  temp.mse.train<-0
-  temp.mse.validation<-0
-  for(j in 1:100){
-    k<- sample(x = 1:nrow(wine),size =i,replace = FALSE)
-    subset <- wine[k,]
-    s<- sample.split(subset, SplitRatio = 2/3)
-    trainSubset<- subset[s==TRUE,]
-    validationSubset<-subset[s==FALSE,]
-    mod<-lm(quality~.^3,data=trainSubset)
-    temp.mse.train<-mean((predict(mod)-trainSubset$quality)^2)+temp.mse.train
-    temp.mse.validation<-mean((predict(mod,newdata=validationSubset)-validationSubset$quality)^2)+     temp.mse.validation
-    
-  }
-  mse.train = c(mse.train,temp.mse.train/100)
-  mse.validation=c(mse.validation,temp.mse.validation/100)
 
-}
-
-plot(x=n,y=mse.validation,type="l",col="blue",ylim=c(min(mse.train),min(c(2,max(mse.validation)))))
-lines(x=n,y=mse.train,type="l", col="red")
-```
 
 We know perform a thin plate spline on the PCA1 to PCA10 data sets, we ignore the other data sets for the construction of this model since they give error messages regarding colinearity. The thin plate spline creates a smooth surface approximating the data points, technically this is done by projecting the data points to a higher dimensional space and then applying ridge regression. The lambda parameter of the ridge regression defines the smoothness of this surface and is chosen by the following function through cross-validation.
 
@@ -516,6 +483,44 @@ for (i in 1:length(fixed.rf[2,])){
 plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE", xlab = "Number of trees")
 lines(seq(10, 1000, 50), tr, col = "blue")
 ```
+##5.2
+
+#5.3 Learning rate
+After finding a good model we wanted to answers if more data would create an even better model.
+To do this we calculated and plotted a diagram with MSE as an function of training data.
+As you can see the validation MSE is still shrinking fast. 
+```{r,eval=FALSE, echo=FALSE,message=FALSE}
+require(randomForest)
+require(caTools)
+set.seed(23)
+toTest<-seq(0.2,0.8,by=0.05)
+l<-lapply(toTest,function(x){
+    s<-sample.split(trainValidate$quality,SplitRatio = x)
+    train<-trainValidate[s==TRUE,]
+    validate<-trainValidate[s==FALSE,]
+    model<-randomForest(quality ~ ., data=train, ntree = 50)
+    tuned.model <- randomForest(quality ~ ., data=train, ntree =
+                                which.min(model$mse))
+    predValidation<-predict(tuned.model,validate)
+    predTrain<-predict(tuned.model,train)
+    
+    list(validationMSE=MSE(predValidation,validate$quality),
+         trainMSE=MSE(predTrain,train$quality))
+    })
+```
+
+```{r}
+t<- sapply(l,function(x){
+  x$trainMSE
+})
+v<- sapply(l,function(x){
+  x$validationMSE
+})
+plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.6),ylab="MSE",xlab="n",main="Learning Rate Random Forest")
+lines(y=v,x=toTest*nrow(trainValidate),col="blue")
+legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
+```
+
 
 #5.x Regression models for classification
 In a way to establish a new better baseline for the classification part. We decided to try our regression models for classification.
@@ -569,8 +574,6 @@ baseline.misclass
 
 Our first classification model will be a KNN model where we classify a new observation according to which class its K-nearest euclidean neighbors belong to (letting the majority decide the outcome and if a tie occurs, letting the K-1 nearest neighbors decide the outcome).
 
-
-
 ```{r,eval=TRUE, warning = FALSE}
 require(FNN)
 neighbors <- c(3,5,7,10,20,40,60,100,150,200)
@@ -589,7 +592,7 @@ knn.models<- lapply(dataSets,function(x){
 generic.plot(neighbors, c(0,240), c(.17,.33), "Number of neighbors", knn.models)
 ```
 
-The best KNN model turns out to be the dataset poly3 with K = 5, giving a validation MCE of 0.1935047.
+The best KNN model turns out to be the data set poly3 with K = 5, giving a validation MCE of 0.1935047.
 
 We continue by constructing LDA and QDA models:
 
@@ -620,7 +623,7 @@ lda.qda.models <- lapply(dataSets, function(x){
 
 RESULTS
 
-The following support vector machine (SVM) models find the hyperplane which best separates the classes given the specified hyperparameters. Note that we only construct this model with the normal dataset due to the large number of hyperparameters.
+The following support vector machine (SVM) models find the hyper-plane which best separates the classes given the specified hyper-parameters. Note that we only construct this model with the normal data set due to the large number of hyper-parameters.
 
 ```{r,eval=TRUE}
 require(e1071)
@@ -759,5 +762,3 @@ best model best (lowest mce) feature set.
 
 
 diskussion om att de nödvändigtvis inte har fått bäst modell efter att de varierat...!
-
-
