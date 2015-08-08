@@ -2,7 +2,7 @@
 title: "Project"
 author: "Simon Almerstr?m Przybyl & Daniel ?hman"
 date: "July 27th 2015"
-output: html_document
+output: word_document
 ---
 
 #1. INTRO / EXPLAIN DATA SET AND TASK
@@ -29,6 +29,10 @@ hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality
 ```
 
 #Note that the histogram plots the quality of the training observations, we will describe the process of #splitting the data into training, validation and test sets more thorughly later.
+```{r, echo=FALSE}
+MSE <- function(x,y){
+  mean((x - y)^2, na.rm = TRUE)}
+```
 
 ```{r,eval=FALSE}
 MSE(mean(train$quality), validation$quality)
@@ -69,10 +73,7 @@ euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wi
 lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
 ```
 
-```{r, echo=FALSE}
-MSE <- function(x,y){
-  mean((x - y)^2, na.rm = TRUE)}
-```
+
 ```{r,cache=TRUE}
 GOOD_WINE=5
 library(caTools)
@@ -243,7 +244,7 @@ linear.models <- lapply(dataSets, function(x){
   cv<-cv.glm(as.data.frame(x$train), model, K = 5)
   list(validationMSE=MSE(pred,validation[12]),
   trainMSE=mean(model$residuals^2),
-  trainCV=cv$delta[1],mceValidation=mean((pred<GOOD_WINE)!=(validation$quality<GOOD_WINE)),model=model)
+  trainCV=cv$delta[1],mceValidation=mean((pred>GOOD_WINE)!=(validation$quality>GOOD_WINE)),model=model)
 })
 ```
 ```{r, echo=FALSE}
@@ -357,7 +358,7 @@ We know perform a thin plate spline on the PCA1 to PCA10 data sets, we ignore th
 
 TODO: Varför använde inte övningar?
 
-```{r,cache=TRUE,eval=FALSE,warning=FALSE}
+```{r,cache=TRUE,eval=FALSE,warning=FALSE,message=FALSE}
 require(fields)
 # avoiding colinearity
 remove <- c(1,2,3,4)
@@ -412,8 +413,10 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
     for(i in 1:nrow(validation)){
       n<-sort(distance[i,],index.return = TRUE)$ix[1:r]
       mod<-lm(quality~.,data=as.data.frame(x$train)[n,])
-      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])}
-      validationMSE <- c(validationMSE, MSE(pred,validation[12]))}
+      pred[i]<-predict(mod,as.data.frame(x$validation)[i,])
+    }
+    validationMSE <- c(validationMSE, MSE(pred,validation[12]))
+  }
   validationMSE
 })
 
@@ -421,7 +424,7 @@ loc.reg.mse <- lapply(temp.dataSets, function(x){
 loc.reg.Vmse <- sapply(loc.reg.mse, function(x){min(x)})
 ```
 
-```{r,eval=TRUE,cache=TRUE,warning=FALSE}
+```{r,eval=FALSE,cache=TRUE,warning=FALSE}
 generic.plot(neighbors, c(30, 680), c(0.45,0.75), "Number of neighbors", loc.reg.mse)
 abline(h = mse.linearV[1], lty = 2)
 ```
@@ -440,7 +443,7 @@ randomForest.models <- lapply(dataSets, function(x){
                                 which.min(model$mse))
   predValidation<-predict(tuned.model,x$validation)
   predTrain<-predict(tuned.model,x$train)
-  list(validationMSE=MSE(predValidation,validation$quality),trainMSE=MSE(predTrain,x$train$quality),tree=which.min(model$mse),model=tuned.model)
+  list(validationMSE=MSE(predValidation,validation$quality),trainMSE=MSE(predTrain,x$train$quality),tree=which.min(model$mse),model=tuned.model,validationMCE=mean(((predValidation>GOOD_WINE)!=(validation$quality>GOOD_WINE))))
 
 })
 ```
@@ -487,14 +490,14 @@ plot(seq(10, 1000, 50), valid, type = "l", col = "red", ylab = "Validation MSE",
 lines(seq(10, 1000, 50), tr, col = "blue")
 ```
 ##5.2
-```{r,eval=TRUE,cache=TRUE}
+```{r,eval=FALSE,cache=TRUE}
 best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
 
 barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
 legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
-```{r,eval=TRUE,cache=TRUE}
+```{r,eval=FALSE,cache=TRUE}
 baseline.MSE.new <- rep(NA, 13)
 baseline.MSE.new[1] <- baseline.MSE
 
@@ -563,7 +566,7 @@ l<-lapply(toTest,function(x){
     })
 ```
 
-```{r}
+```{r,eval=FALSE}
 t<- sapply(l,function(x){
   x$trainMSE
 })
@@ -577,6 +580,7 @@ legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 #5.x Regression models for classification
 In a way to establish a new better baseline for the classification part. We decided to try our regression models for classification.
 ```{r,eval=FALSE}
+par(mfrow=c(3,2))
 #Linear
 linear.mce<-sapply(linear.models,function(x){
   x$mceValidation
@@ -595,7 +599,23 @@ ridge.mce<- sapply(ridge.models,function(x){
 })
 barplot(ridge.mce,las=2,main="Ridge models",ylim = c(0,0.45))
 
+#Random Forest
+rf.mce<-sapply(randomForest.models,function(x){
+  x$validationMCE
+})
+barplot(rf.mce,las=2,main="Random Forest",ylim = c(0,0.45))
 
+#TPS
+tps.mce<- sapply(tps.models,function(x){
+  x$mceValidation
+})
+barplot(tps.mce,las=2,main="TPS",ylim = c(0,0.45))
+
+#Local Regression
+#local.mce<- sapply(tps.models,function(x){
+#  x$mceValidation
+#})
+#barplot(tps.mce,las=2,main="Local Regression",ylim = c(0,0.45))
 ```
 
 ##5.1 CLASSIFICATION
@@ -609,7 +629,7 @@ MCE <- function(x, y)
 
 	
 ```{r, echo = FALSE}
-MIN_PRECISION=0.75
+#MIN_PRECISION=0.75
 validation$binary.quality <- validation$quality >= 6
 validation$quality=NULL
 validation$binary.quality<-as.factor(validation$binary.quality)
@@ -652,7 +672,7 @@ The LDA model calculates the mean of the attributes for a given class, and then 
 
 The QDA model works similarly but in this case the variance is not set to 1 but instead to the variance of the attributes of the each individual class. 
 
-```{r,eval=FALSE}
+```{r,eval=FALSE,cache=TRUE}
 require(MASS)
 
 # remove poly2 and poly3?
@@ -677,7 +697,7 @@ RESULTS
 
 The following support vector machine (SVM) models find the hyper-plane which best separates the classes given the specified hyper-parameters. Note that we only construct this model with the normal data set due to the large number of hyper-parameters.
 
-```{r,eval=TRUE}
+```{r,eval=TRUE,cache=TRUE}
 require(e1071)
 
 #Hyperparameters
@@ -707,7 +727,7 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
   })))
 
 
-df[order(as.numeric(df$validationError)),]
+df[order(as.numeric(df$validationError))[5],]
 
 # barplot 
 # tabell istället? Titta närmare på radial med fler hyperparametrar (coef0 och degree ändras inte?):
@@ -729,7 +749,7 @@ list(kernel = x$call$kernel,cost=x$cost,gamma=x$gamma,coef0=x$coef0,degree=x$deg
   })))
 
 
-df[order(as.numeric(df$validationError)),]
+df[order(as.numeric(df$validationError))[3],]
 
 ```	
 
@@ -834,7 +854,7 @@ l<-lapply(toTest,function(x){
     })
 ```
 
-```{r}
+```{r,eval=FALSE}
 t<- sapply(l,function(x){
   x$trainMCE
 })
@@ -846,7 +866,11 @@ lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
 
-
+```{r}
+test$binary.quality<- test$quality>GOOD_WINE
+test$quality<- NULL
+randomForest.c.models$
+```
 ##Results and disc
 best model best (lowest mce) feature set.
 
