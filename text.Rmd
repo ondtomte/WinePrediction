@@ -9,7 +9,7 @@ output: html_document
 
 For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
 
-```{r}
+```{r,echo=FALSE}
 #download.file(url="https://archive.ics.uci.edu/ml/machine-learning-databases/wi#ne-qual#ity/winequality-white.csv",destfile = "winequality-white.csv")
 wine<-read.csv("winequality-white.csv",sep=";")
 str(wine)
@@ -24,7 +24,7 @@ Our task is thus to investigate how different chemical levels affect the quality
 Regarding the accuracy of the different subtasks:
 
 In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model consists of simply guessing the mean quality of the training.
-```{r}
+```{r,echo=FALSE}
 hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality")
 ```
 
@@ -57,7 +57,7 @@ The data set did not contain any unknown values. Initially, we did not search fo
 
 We searched for outliers (i.e. observations deviating extremely) by examining the Euclidean norm of the attributes of the observations:
 
-```{r}
+```{r,echo=FALSE}
 require(scales)
 wine <- cbind(as.data.frame(scale(wine[,-12],center = TRUE)),quality=wine[,12])
 wine2 <- wine
@@ -75,7 +75,7 @@ baseline.MSE <- MSE(mean(train$quality), validation$quality)
 
 The black line shows the Euclidean norm of all of the observations in the wine data set, ranging from the one with the lowest norm to the one with the highest. Since there are clearly a few observations deviating extremely in terms of their Euclidean norm, we chose to remove these observations and only keep the line segment marked in red. The following histogram shows the quality distribution of the removed observations:
 
-```{r}
+```{r,echo=FALSE}
 hist(wine2$quality[sorted[c(1:80, (length(sorted)-200):length(sorted))]], col = "red", main = "Removed data", xlab = "Quality")
 ```
 
@@ -179,7 +179,7 @@ KOMMENTAR.
 
 We also examine the mutual information criterion:
 
-```{r}
+```{r,cache=TRUE,echo=FALSE,message=FALSE}
 #Shared information
 require(plyr)
 require(reshape)
@@ -207,7 +207,7 @@ MSE <- function(x,y){
 
 We begin by simply regressing quality on each of the individual attributes. The highest mutual information was observed between quality and density, we therefore naively except this model to perform best (given that the relation between density and quality is actually linear, plotting the data shows a slight such tendency):
 
-```{r}
+```{r,echo=FALSE,cache=TRUE}
 lm.models <- list()
 for (i in 1:11) {
   model<-lm(as.formula(paste("quality~", names(train)[i])),train)
@@ -236,7 +236,7 @@ The models performed badly, the only model with descent performance was the alco
 
 We continue with more advanced linear models:
 
-```{r,cache=TRUE}
+```{r,cache=TRUE,echo=FALSE,message=FALSE}
 library(boot)
 linear.models <- lapply(dataSets, function(x){
   model<-glm(quality~.,data=x$train)
@@ -358,7 +358,7 @@ We know perform a thin plate spline on the PCA1 to PCA10 data sets, we ignore th
 
 TODO: Varför använde inte övningar?
 
-```{r,cache=TRUE,eval=TRUE,warning=FALSE}
+```{r,cache=TRUE,eval=FALSE,warning=FALSE}
 require(fields)
 # avoiding colinearity
 remove <- c(1,2,3,4)
@@ -391,7 +391,7 @@ generic.plot <- function(x.cord, x.lim, y.lim, x.name, x){
 # COLOR PROBLEM, rainbow()...?
 ```
 
-```{r,eval=TRUE,cache=TRUE,warning=FALSE}
+```{r,eval=FALSE,cache=TRUE,warning=FALSE}
 distMatrix=function(N,M){
   eN<-matrix(1,nrow=nrow(N),ncol=ncol(N))
   eM<-matrix(1,nrow=nrow(M),ncol=ncol(N))
@@ -439,8 +439,9 @@ randomForest.models <- lapply(dataSets, function(x){
   model<-randomForest(quality ~ ., data=x$train, ntree = 500)
   tuned.model <- randomForest(quality ~ ., data=x$train, ntree =
                                 which.min(model$mse))
-  pred<-predict(tuned.model,as.data.frame(x$validation))
-  list(validationMSE=MSE(pred,validation$quality),trainMSE=tuned.model$mse[length(tuned.model$mse)],tree=which.min(model$mse))
+  predValidation<-predict(tuned.model,x$validation)
+  predTrain<-predict(tuned.model,x$train)
+  list(validationMSE=MSE(predValidation,validation$quality),trainMSE=MSE(predTrain,x$train$quality),tree=which.min(model$mse),model=tuned.model)
 })
 ```
 
@@ -452,7 +453,7 @@ mse.forestV<- sapply(randomForest.models,function(x){
 mse.forestT<- sapply(randomForest.models,function(x){
   x$trainMSE
 })
-barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomright"))
+barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="topleft"))
 ```
 
 The normal data set with a validation MSE of `randomForest.models$normal$validationMSE` (`proc.base(randomForest.models$normal$validationMSE)`% lower than baseline) performs best, however the poly2 and poly3 data sets only performed slightly worse. Interestingly, the validation MSE for normal is lower than its training MSE, suggesting that overfitting does not occur.
@@ -780,6 +781,44 @@ for (i in 2:length(x)){
   cust.col[i], lwd = 3)}
 legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)
 ```
+##6.2133423 Learning Rate Best Model for Classification
+```{r,eval=FALSE, echo=FALSE,message=FALSE}
+require(randomForest)
+require(caTools)
+set.seed(23)
+toTest<-seq(0.2,0.8,by=0.01)
+l<-lapply(toTest,function(x){
+    s<-sample.split(trainValidate$quality,SplitRatio = x)
+    train<-trainValidate[s==TRUE,]
+    validate<-trainValidate[s==FALSE,]
+    train$binary.quality<-as.factor(train$quality>GOOD_WINE)
+    validate$binary.quality<-as.factor(validate$quality>GOOD_WINE)
+    train$quality<-NULL
+    validate$quality<-NULL
+    model<-randomForest(binary.quality ~ ., data=train, ntree = 5)
+    tuned.model <- randomForest(binary.quality ~ ., data=train, ntree =
+                                which.min(model$err.rate[,1]))
+    predValidation<-predict(tuned.model,validate)
+    predTrain<-predict(tuned.model,train)
+    
+    list(validationMCE=MCE(predValidation,validate$binary.quality),
+         trainMCE=MCE(predTrain,train$binary.quality))
+    })
+```
+
+```{r}
+t<- sapply(l,function(x){
+  x$trainMCE
+})
+v<- sapply(l,function(x){
+  x$validationMCE
+})
+plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.3),ylab="MCE",xlab="n",main="Learning Rate Random Forest")
+lines(y=v,x=toTest*nrow(trainValidate),col="blue")
+legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
+```
+
+
 ##Results and disc
 best model best (lowest mce) feature set.
 
