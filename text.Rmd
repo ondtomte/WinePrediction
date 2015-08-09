@@ -1,58 +1,47 @@
 ---
-title: "Project"
-author: "Simon Almerstr?m Przybyl & Daniel ?hman"
-date: "July 27th 2015"
+title: "Wine Prediction - Machine Learning Project"
+author: "Simon Almerström Przybyl & Daniel Öhman"
+date: "August 9th 2015"
 output: html_document
 ---
 
-#1. INTRO / EXPLAIN DATA SET AND TASK
+#1. INTRODUCTION
 
-For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale. The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
-
-```{r,echo=FALSE}
-wine<-read.csv("winequality-white.csv",sep=";")
-colnames(wine)
-```
-
-Our task is thus to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
-
-1 - We view the quality of wine as a continuous variable allowed to take any value on the interval [0,10], this view of the problem yields a regression problem.
-
-2 - We define a good wine to be a wine having quality larger than or equal to 6, and a poor wine to be a wine having quality strictly less than 6. This yields a binary classification problem of separating good wine from poor wine.
-
-Regarding the accuracy of the different subtasks:
-
-In the regression subtask we are of course seeking to minimize the MSE as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model consists of simply guessing the mean quality of the training.
-```{r,echo=FALSE}
-hist(wine$quality,col="red",main="White wine quality distribution",xlab="Quality",breaks = 7)
-```
-
-#Note that the histogram plots the quality of the training observations, we will describe the process of #splitting the data into training, validation and test sets more thorughly later.
 ```{r, echo=FALSE}
 MSE <- function(x,y){
   mean((x - y)^2, na.rm = TRUE)}
 ```
 
-```{r,eval=FALSE}
-MSE(mean(train$quality), validation$quality)
+For our project, we have chosen to examine a wine data set. The data set contains measures of chemical levels in wine as its input variables, and the quality of wine as its target variable. The measured chemical levels ranged from the pH level of the wine to the alcohol percentage of the wine, in total 11 different chemical levels were measured on a continuous linear scale:
+
+```{r,echo=FALSE}
+wine<-read.csv("winequality-white.csv",sep=";")
+colnames(wine[-12])
 ```
 
-Since our training data is approximately normally distrubuted around 6 (with of variance of 0.7723022), our baseline model will perform quite well (this model yields a validation MSE of 0.7705384 and a test MSE of 0.7779192). Therefore, in order to justify the existence of our more sophisticated models, we want them to give a much lower MSE.
+The quality of the wine was measured on a discrete scale from 0 to 10, though the actual observed range was only from 3 to 9. It should also be noted that the quality of the wine was graded by letting individuals taste the wine, the quality scale therefore reflects expert opinion.
+
+```{r,echo=FALSE}
+hist(wine$quality,col="red",main="Wine Quality Distribution",xlab="Quality",breaks = 7)
+```
+
+Our task is thus to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
+
+1. We view the quality of wine as a continuous variable allowed to take any value on the interval [0,10], this view of the problem yields a regression problem.
+
+2. We define a good wine to be a wine having quality larger than or equal to 6, and a poor wine to be a wine having quality strictly less than 6. This yields a binary classification problem of separating good wine from poor wine.
+
+Regarding the accuracy of the different subtasks:
+
+In the regression subtask we are of course seeking to minimize the MSE (mean squared error) as far as possible. Moreover, we definitely want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model will consist of simply guessing the mean quality of the training.
 
 How low we want to push down the MSE for us to be satisfied with our models is a difficult question and depends on how are models are supposed to be used. We believe a resonable purpose for our models is to act as a tool for beverage stores when they decide which wine they should keep in stock. However, it is still difficult to define how low the MSE should be for us to be content: When one is for example constructing a bridge, one will probably want the prediction of the target value to be precise enough so the probability of the bridge collapsing is negligent. In our case, our regression models can not really be said to have such a clear goal: We can basically only tell if one given model is better than another given model, not if they are good enough in an absolute sense.
 
-Given the discussion above, any quantitative measure of how much we want to reduce our test MSE is completely arbitrary. However, we pretend that the marketing department of the beverage store has demanded that the test MSE of a sufficient model should be 50% lower than the test MSE of our basline model, such a reduction in MSE would let the marketing department advertise our model as being "50% better than chance".
+Given the discussion above, any quantitative measure of how much we want to reduce our test MSE is completely arbitrary. However, we pretend that the marketing department of the beverage store has demanded that the test MSE of a sufficient model should be 50% lower than the test MSE of our basline model, such a reduction in MSE would let the marketing department advertise our model as being "twice as good as chance".
 
-OLD: In the classification subtask, our main interest is to have a high precision rate, intuitively because we seek to minimize the risk of someone intending to buy a good wine but actually getting a poor wine. We believe a 90% precision rate is sufficiently high for this purpose.
+In the classification subtask, we seek to maximize model accuarcy (minimze the MCE). The discussion that we held regarding our quantitative demands for the regression models applies directly to the classification models as well: It is difficult for us to specify how a classification model has to perform in order to be be considered sufficiently good, we will therefore pretend that we for purposes of marketing want a classification model to perform twice as good as our baseline classification model. In the classification case the baseline consists of guessing that a new observation belong to the same class as the majority of the obervations in the training data.
 
-NEW: In the classification subtask, we seek to maximize model accuarcy (i.e. minimze the MCE). The discussion that we held regarding our quantitative demands for the regression models applies directly to the classification models as well: It is difficult for us to specify how a classification model has to perform in order to be be considered sufficiently good, therefore we will pretend that we for purposes of marketing want a classification model to perform twice as good as our baseline classification model. In the classification case the baseline consists of guessing that a new observation belong to the same class as the majority of the obervations in the training data.
-
-KANSKE: In the discussion at the end of this report, we will also discuss alternative measures which could be used to compare the performance of classification models.
-
-END NEW
-
-
-#2. DATA CLEANING
+#2. DATA CLEANING & OUTLIER DETECTION
 
 We downloaded the data set from the UCI Machine Learning Repository [link]( https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of wine with different colours may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
 
@@ -73,8 +62,17 @@ euc <- sqrt(wine[,1]^2+wine[,2]^2+wine[,3]^2+wine[,4]^2+wine[,5]^2+wine[,6]^2+wi
 lines(y=sort(euc),x=51:(nrow(wine)+50), col = alpha("red", 0.5), lw=6)
 ```
 
+The black line shows the Euclidean norm of all of the observations in the wine data set, ranging from the one with the lowest norm to the one with the highest. Since there are clearly a few observations deviating extremely in terms of their Euclidean norm, we chose to remove these observations and only keep the line segment marked in red, that is we only kept observations whose norm was strictly higher than `r sort(euc)[1]` and strictly smaller than `r sort(euc)[length(sort(euc))]`. The following histogram shows the quality distribution of the removed observations:
 
-```{r,cache=TRUE}
+```{r,echo=FALSE}
+hist(wine2$quality[sorted[c(1:80, (length(sorted)-200):length(sorted))]], col = "red", main = "Removed data", xlab = "Quality",breaks=7)
+```
+
+The histogram shows that the removed observations did not come from any particular quality class (they are distributed similarly to the training data set).
+
+#3. DATA SPLIT
+
+```{r,cache=TRUE, echo=FALSE}
 GOOD_WINE=5
 library(caTools)
 set.seed(24)
@@ -86,38 +84,65 @@ validation <- trainValidate[s==FALSE,]
 train <- trainValidate[s==TRUE,]
 ```
 
-```{r}
+```{r, echo = FALSE}
 baseline.MSE <- MSE(mean(train$quality), validation$quality)
 ```
 
-The black line shows the Euclidean norm of all of the observations in the wine data set, ranging from the one with the lowest norm to the one with the highest. Since there are clearly a few observations deviating extremely in terms of their Euclidean norm, we chose to remove these observations and only keep the line segment marked in red. The following histogram shows the quality distribution of the removed observations:
-
-```{r,echo=FALSE}
-hist(wine2$quality[sorted[c(1:80, (length(sorted)-200):length(sorted))]], col = "red", main = "Removed data", xlab = "Quality",breaks=7)
-```
-
-The histogram shows that the removed observations did not come from any particular quality class (they are distributed similarly to the training data set).
-
-RUBRIK
-
 The wine data set was split into training, validation and test sets by doing a random 64-16-20 split while preserving relative ratios of different labels of the target variable (note that this split is done by first doing a 80-20 split into a combined training-validation set and test set, followed by a 80-20 split of the combined training-validation set). For the binary classification we created a new target variable which is either true or false depending on if the wine is good or poor. Note that the same data split was used for both the regression problem and the classification problem. Finally, we scaled and centered all of the attributes except for the target variable.
 
-#3 & 4. FEATURE IMPORTANCE SCORES / PCA
+# 4. FEATURE IMPORTANCE SCORES
 
-We used PCA to find the successive orthogonal directions of maximum variance:
+We examine the linear dependency between the attributes and return those who are most linearly dependent (those with largest absolute value of correlation):
 
-```{r}
-PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
-PCA$sdev
+```{r,echo=FALSE,message=FALSE}
+require(gridExtra)
+#cor
+cor_wine<-cor(train)
+cor_wine[lower.tri(cor_wine,diag=TRUE)] <-NA
+df_wine <- as.data.frame(as.table(cor_wine))
+df_wine <- df_wine[order(-abs(df_wine$Freq)),]
+#Top 10 highest correlated attributes
+colnames(df_wine)<- c("","","Cor")
+grid.table(df_wine[1:10,])
 ```
 
-Intuitively PCA defines a set of new base vectors of our data (corresponding to a rotation) and also gives the standard deviations of our data in these directions, the idea is to keep the directions of high variance since these are assumed to be the most informative (at least given a linear relation between the attrbiutes and the target variable).
+If we were to remove some features, it would be reasonable to remove for example residual.sugar and total.sulfur.dioxide since density already provides information about these attributes.
 
-Since the standard deviations decrease quite slowly without any sharp decline, except for the step from the 10th to the 11th principle component, there is not any natural cut-off point for how many principle components we should choose. We therefore choose to express our data using the first i principle components, for every i from 1 to 11, and create a new data frame for each such transformation.
+We also examine the mutual information criterion:
 
-We also create new data frames where we have projected our original data onto 2nd and 3rd order polynomials, note that these polynomials contain 11 variables and thus have a lot of cross terms. We call these these data frames poly2 and poly3 respectively, while our original data frame is called normal. We do not project onto polynomials of higher order because of computational limitations, and we do not believe that such polynomials would yield better models since they would most likely overfit to the training data. When we create models, we will simultaneously create a given model (for example linear regression) for all of these data frames.
+```{r,cache=TRUE,echo=FALSE,message=FALSE}
+#Shared information
+require(plyr)
+require(reshape)
+require(entropy)
+my_fun<-function(x){freq <- count(train,c("quality",x))
+colnames(freq) <- c("Var1","Var2","Freq")
+freq2d<-cast(freq, Var1 ~ Var2,fill=0,value ="Freq")
+mi.plugin(freqs2d = freq2d)}
 
-## PCA
+cn<- colnames(wine[,-12])
+mi <- sapply(cn,my_fun)
+sort(mi,decreasing = TRUE)
+```
+
+The fact that density has the highest mutual information criterion intuitively matches our results about the linear dependency of the attributes: By using the linear dependencies, knowing the density of wine provides us with information about its residual.sugar, alcohol and total.sulfur.dioxide values. Knowing four attributes, we most likely have a higher probability of knowing the quality of the wine than if we only know one attribute.
+
+# 5. PCA
+
+We used PCA (principle components analysis) to find the successive orthogonal directions of maximum variance. The following are the standard deviations of the principle components:
+
+```{r, echo = FALSE}
+PCA <- prcomp(train[,-12], center = FALSE, scale. = FALSE)
+sdev <- PCA$sdev
+names(sdev) <- c("PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11")
+sdev
+```
+
+Intuitively PCA defines a set of new base vectors of our data (corresponding to a rotation), the idea is to keep the directions of high variance since these are assumed to be the most informative (at least given a linear relation between the attrbiutes and the target variable).
+
+Since the standard deviations decrease quite slowly without any sharp decline, except for the step from the 10th to the 11th principle component, there is not any natural cutoff point for how many principle components we should choose. We therefore choose to express our data using the first i principle components, for every i from 1 to 11, and create a new data frame pcai for each such transformation.
+
+We also create new data frames where we have projected our original data onto 2nd and 3rd order polynomials, note that these polynomials contain 11 variables and thus have a lot of cross terms. We call these these data frames poly2 and poly3 respectively, while our original data frame is called normal. We do not project onto polynomials of higher order because of computational limitations, and we do not believe that such polynomials would yield better models since they would most likely overfit to the training data. When we create models, we will often simultaneously create a given model (for example linear regression) for all of these data frames.
 
 ```{r, echo=FALSE,cache=TRUE}
 #Create data set with diffrent attribute
@@ -164,43 +189,6 @@ dataSets<- list(normal=list(train=train,validation=validation),
                 
 dataSets$normal$validation$quality=NULL
 ```
-
-We examine the linear dependency between the attributes and return those who are most linearly dependent (those with largest absolute value of correlation):
-
-```{r,echo=FALSE,message=FALSE}
-require(gridExtra)
-#cor
-cor_wine<-cor(train)
-cor_wine[lower.tri(cor_wine,diag=TRUE)] <-NA
-df_wine <- as.data.frame(as.table(cor_wine))
-df_wine <- df_wine[order(-abs(df_wine$Freq)),]
-#Top 10 highest correlated attributes
-colnames(df_wine)<- c("","","Cor")
-grid.table(df_wine[1:10,])
-```
-
-If we were to remove some features, it would be reasonable to remove for example residual.sugar and total.sulfur.dioxide since density already provides information about these attributes.
-
-KOMMENTAR.
-
-We also examine the mutual information criterion:
-
-```{r,cache=TRUE,echo=FALSE,message=FALSE}
-#Shared information
-require(plyr)
-require(reshape)
-require(entropy)
-my_fun<-function(x){freq <- count(train,c("quality",x))
-colnames(freq) <- c("Var1","Var2","Freq")
-freq2d<-cast(freq, Var1 ~ Var2,fill=0,value ="Freq")
-mi.plugin(freqs2d = freq2d)}
-
-cn<- colnames(wine[,-12])
-mi <- sapply(cn,my_fun)
-sort(mi,decreasing = TRUE)
-```
-
-The fact that density has the highest mutual information criterion intuitively matches our results about the linear dependency of the attributes: By using the linear dependencies, knowing the density of wine provides us with information about its residual.sugar, alcohol and total.sulfur.dioxide values. Knowing four attributes, we most likely have a higher probability of knowing the quality of the wine than if we only know one attribute.
 
 #5. MODELS
 
