@@ -817,7 +817,7 @@ require(ada)
 dataSets.foo <- dataSets
 dataSets.foo$pca1 <- NULL
 
-iterations <- c("1" = 1, "5" = 5, "10" = 10, "15" = 15, "20" = 20, "30" = 30, "40" = 40)
+iterations <-c("1" = 1, "5" = 5, "10" = 10, "15" = 15, "20" = 20, "30" = 30, "40" = 40)
 
 ada.models <- lapply(dataSets.foo, function(x){
   lapply(iterations, function(y){
@@ -835,7 +835,7 @@ generic.plot(iterations, c(20,43), c(.16,.33), "Number of iterations", ada.model
 # gör poly3 med många och tuned?
 ```
 
-```{r,eval=TRUE,echo=FALSE}
+```{r,eval=TRUE,echo=FALSE,cache=TRUE}
 require(ROCR)
 
 # returnerna model
@@ -854,7 +854,7 @@ for (i in 2:length(x)){
 legend("topright", names(x), col=cust.col, lty=1, cex = 0.5)
 ```
 ##6.2133423 Learning Rate Best Model for Classification
-```{r,eval=TRUE, echo=FALSE,message=FALSE}
+```{r,eval=TRUE, echo=FALSE,message=FALSE,cache=TRUE}
 require(randomForest)
 require(caTools)
 set.seed(23)
@@ -908,36 +908,31 @@ legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
 ```
 
 ```{r,echo=FALSE,eval=TRUE}
-best.class.V <- c("baseline" = baseline.misclass, "KNN" = min(knn.models$poly3), "LDA" = lda.qda.models$poly3$lda.validation.MCE, "QDA" = lda.qda.models$poly3$qda.validation.MCE, "SVM" =  df$validationError[[13]], "RF" = randomForest.c.models$poly3$`100`, "ADA" = ada.models$poly3$`30`, "Log. reg." = min(1 - performance(x[[2]], "acc")@y.values[[1]]))
+best.class.V <- c("baseline" = baseline.misclass, "KNN" = min(knn.models$poly3), "LDA" = lda.qda.models$poly3$lda.validation.MCE, "QDA" = lda.qda.models$poly3$qda.validation.MCE, "SVM" =  df$validationError[[13]], "RF" = randomForest.c.models$poly3$validationMCE[5], "ADA" = ada.models$poly3$`30`, "Log. reg." = min(1 - performance(x[[2]], "acc")@y.values[[1]]))
 
 barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.col[3],cust.col[1],cust.col[3],cust.col[3],cust.col[2]), ylim = c(0,0.4), main = "Validation MCE, Best Data Sets")
 legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
 
-```{r,eval=TRUE,cache=TRUE}
+```{r,eval=TRUE,cache=TRUE,echo=FALSE}
 baseline.MCE.new <- c(baseline.misclass, rep(NA, 12))
 best.knn.models <- sapply(knn.models, function(x){min(x)})
 new.lda.models <- sapply(lda.qda.models, function(x){x$lda.validation.MCE})
 new.qda.models <- sapply(lda.qda.models, function(x){x$qda.validation.MCE})
 svm.new <- c(df$validationError[[13]], rep(NA, 12))
 
-matrix.rf <- matrix(ncol = 13, nrow = length(randomForest.c.models$normal))
-best.rf <- c()
-for (i in 1:13){
-  for (j in 1:length(randomForest.c.models$normal)){
-    matrix.rf[j,i] <- randomForest.c.models[[i]][[j]]
-  }
-  best.rf[i] <- min(matrix.rf[,i])
-}
+best.rf <- sapply(randomForest.c.models,function(x){
+   min(x$validationMCE)
+}) 
 
-matrix.ada <- matrix(ncol = 13, nrow = length(ada.models$normal))
+matrix.ada <- matrix(ncol = 12, nrow = length(ada.models$normal))
 best.ada <- c()
-for (i in 1:13){
+for (i in 1:12){
   for (j in 1:length(ada.models$normal)){
-    matrix.ada[j,i] <- randomForest.c.models[[i]][[j]]
+    matrix.ada[j,i] <- ada.models[[i]][[j]]
   }
-  best.ada[i] <- min(matrix.ada[,i])
+  best.ada <- c(best.ada,min(matrix.ada[,i]))
 }
 
 log.new <- c()
