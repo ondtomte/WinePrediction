@@ -890,7 +890,6 @@ lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
 
-
 ##Results and disc
 
 ```{r,eval=TRUE,cache=TRUE,echo=FALSE}
@@ -915,8 +914,34 @@ barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.
 legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
+
+```{r,eval=TRUE,cache=TRUE}
+baseline.MCE.new <- c(baseline.misclass, rep(NA, 12))
+best.knn.models <- sapply(knn.models, function(x){min(x)})
+new.lda.models <- sapply(lda.qda.models, function(x){x$lda.validation.MCE})
+new.qda.models <- sapply(lda.qda.models, function(x){x$qda.validation.MCE})
+svm.new <- c(df$validationError[[13]], rep(NA, 12))
+
+#RF.new <- sapply(randomForest.c.models, function(x){})
+RF.new <- rep(NA,13)
+#ada.models.new <- c(adamodels, NA)
+ada.models.new <- rep(NA,13)
+
+
+log.new <- c()
+for (i in 1:13){
+  log.new[i] <- min(1 - performance(x[[i]], "acc")@y.values[[1]])
+}
+
+bar.matrix <- matrix(c(baseline.MCE.new, best.knn.models, new.lda.models, new.qda.models, svm.new, RF.new, ada.models.new, log.new, rep(NA, 13), rep(NA, 13)), ncol = 10)
+
+
+barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","KNN","LDA","QDA","SVM","RF","ADA", "Log. reg.", "", ""), las = 2, col = cust.col)
+legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.60)
+```
+
 Result on test set
-```{r,eval=FALSE,echo=FALSE}
+```{r,echo=FALSE}
 test$binary.quality<- test$quality>GOOD_WINE
 test$quality<- NULL
 MCE(predict(randomForest.c.models$normal$model,test),test$binary.quality)
