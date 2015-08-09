@@ -922,19 +922,30 @@ new.lda.models <- sapply(lda.qda.models, function(x){x$lda.validation.MCE})
 new.qda.models <- sapply(lda.qda.models, function(x){x$qda.validation.MCE})
 svm.new <- c(df$validationError[[13]], rep(NA, 12))
 
-#RF.new <- sapply(randomForest.c.models, function(x){})
-RF.new <- rep(NA,13)
-#ada.models.new <- c(adamodels, NA)
-ada.models.new <- rep(NA,13)
+matrix.rf <- matrix(ncol = 13, nrow = length(randomForest.c.models$normal))
+best.rf <- c()
+for (i in 1:13){
+  for (j in 1:length(randomForest.c.models$normal)){
+    matrix.rf[j,i] <- randomForest.c.models[[i]][[j]]
+  }
+  best.rf[i] <- min(matrix.rf[,i])
+}
 
+matrix.ada <- matrix(ncol = 13, nrow = length(ada.models$normal))
+best.ada <- c()
+for (i in 1:13){
+  for (j in 1:length(ada.models$normal)){
+    matrix.ada[j,i] <- randomForest.c.models[[i]][[j]]
+  }
+  best.ada[i] <- min(matrix.ada[,i])
+}
 
 log.new <- c()
 for (i in 1:13){
-  log.new[i] <- min(1 - performance(x[[i]], "acc")@y.values[[1]])
+  log.new[i] <- min(1 - performance(logistic.reg[[i]], "acc")@y.values[[1]])
 }
 
-bar.matrix <- matrix(c(baseline.MCE.new, best.knn.models, new.lda.models, new.qda.models, svm.new, RF.new, ada.models.new, log.new, rep(NA, 13), rep(NA, 13)), ncol = 10)
-
+bar.matrix <- matrix(c(baseline.MCE.new, best.knn.models, new.lda.models, new.qda.models, svm.new, best.rf, best.ada, log.new, rep(NA, 13), rep(NA, 13)), ncol = 10)
 
 barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","KNN","LDA","QDA","SVM","RF","ADA", "Log. reg.", "", ""), las = 2, col = cust.col)
 legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.60)
