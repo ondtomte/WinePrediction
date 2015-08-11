@@ -795,7 +795,7 @@ We construct a set of random forest models (note that we do not tune the models)
 ```{r,eval=TRUE, cache=TRUE,warning=FALSE,echo=FALSE}
 set.seed(56)
 require(randomForest)
-trees <-c("5" = 5, "10" = 10, "20" = 20, "50" = 50, "100" = 100, "200" = 200)
+trees <-c("5" = 5, "10" = 10, "20" = 20, "50" = 50, "100" = 100, "200" = 200, "300" = 300, "400" = 400, "500" = 500, "600" = 600)
 randomForest.c.models <- lapply(dataSets, function(x){
   validationMCE<-c()
   trainMCE<-c()
@@ -820,7 +820,7 @@ randomForest.c.mce<-lapply(randomForest.c.models,function(x){
 ```
 
 ```{r,eval=TRUE, cache=TRUE,warning=FALSE,echo=FALSE}
-generic.plot(trees, c(0,240), c(.12,.32), "Number of trees", randomForest.c.mce)
+generic.plot(trees, c(0,750), c(.12,.32), "Number of trees", randomForest.c.mce)
 ```
 
 Poly2 with 100 trees gave the best result with a validation MSE of `r round(randomForest.c.mce$poly2[5], 3)` (`r round(proc.base.class(randomForest.c.mce$poly2[5]), 2)`% lower than baseline).
