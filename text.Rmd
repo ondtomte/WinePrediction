@@ -923,16 +923,18 @@ legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lw
 ```
 
 ## 7.2 MODEL PERFORMANCE
-```{r,echo=FALSE}
+```{r,echo=FALSE,message=FALSE}
+require(randomForest)
 testPoly<- as.data.frame(with(test[-12],polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = 2,raw=TRUE)))
 names(testPoly)<-names(dataSets$poly2$train[-ncol(dataSets$poly2$train)])
-temp<-MCE(predict(randomForest.c.models$poly2$model,newdata=testPoly),test$quality>GOOD_WINE)
+Predictions<-predict(randomForest.c.models$poly2$model,newdata=testPoly,type="response")
+temp<-MCE(Predictions,test$quality>GOOD_WINE)
 ```
 Result on test set:`r round(temp,3)`
-```{r}
-```
-
-
+Confussion table `r table(Predictions,test$quality>GOOD_WINE)`.
+$Precisson=\frac{567}{567+54}\approx 0.91$
+$Recall=\frac{567}{567+104}\approx 0.85$
+$Specificity=\frac{199}{199+104}\approx 0.66$
 ## 7.3 LEARNING RATE
 
 ```{r,eval=TRUE, echo=FALSE,message=FALSE,cache=TRUE}
