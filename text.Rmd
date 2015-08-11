@@ -514,11 +514,12 @@ loc.reg.Vmse.new <- c(loc.reg.Vmse, NA)
 
 mse.ridgeV.new <- c(mse.ridgeV, NA)
 
+lm.one <- c(lm.models$alcohol$validationMSE, rep(NA,12))
 
-bar.matrix <- matrix(c(baseline.MSE.new, mse.linearV, mse.lassoV, mse.ridgeV.new, tps.valid.new, loc.reg.Vmse.new, mse.forestV, rep(NA, 13), rep(NA, 13)), ncol = 9)
+bar.matrix <- matrix(c(baseline.MSE.new, lm.one, mse.linearV, mse.lassoV, mse.ridgeV.new, tps.valid.new, loc.reg.Vmse.new, mse.forestV, rep(NA, 13), rep(NA, 13)), ncol = 10)
 
 
-barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col, ylab = "Validation MSE")
+barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline", "1. var. LM", "LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col, ylab = "Validation MSE")
 legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
 ```
 
@@ -955,9 +956,9 @@ We construct a confusion matrix:
 table(Predictions,test$quality>GOOD_WINE)
 ```
 
-$Precision=\frac{567}{567+54}\approx 0.91$
+$Precision=\frac{562}{562+59}\approx 0.90$
 
-$Recall=\frac{567}{567+104}\approx 0.85$
+$Recall=\frac{562}{562+104}\approx 0.84$
 
 $Specificity=\frac{199}{199+104}\approx 0.66$
 
