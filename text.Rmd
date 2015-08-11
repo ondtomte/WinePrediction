@@ -731,6 +731,8 @@ lda.qda.models <- lapply(dataSets, function(x){
 # barplot
 # $posterior + ROCR...
 ```
+```{r}
+```
 
 RESULTS
 
@@ -927,6 +929,9 @@ names(testPoly)<-names(dataSets$poly2$train[-ncol(dataSets$poly2$train)])
 temp<-MCE(predict(randomForest.c.models$poly2$model,newdata=testPoly),test$quality>GOOD_WINE)
 ```
 Result on test set:`r round(temp,3)`
+```{r}
+```
+
 
 ## 7.3 LEARNING RATE
 
@@ -946,10 +951,10 @@ l<-lapply(toTest,function(x){
     names(validatePoly)<-names(dataSets$poly2$validation)
     validatePoly$binary.quality<-as.factor(validate$quality>GOOD_WINE)
     model<-randomForest(binary.quality ~ ., data=trainPoly, ntree = 50)
-    tuned.model <- randomForest(binary.quality ~ ., data=trainPoly, ntree =
-                                which.min(model$err.rate[,1]))
-    predValidation<-predict(tuned.model,validatePoly)
-    predTrain<-predict(tuned.model,trainPoly)
+    #tuned.model <- randomForest(binary.quality ~ ., data=trainPoly, ntree =
+     #                           which.min(model$err.rate[,1]))
+    predValidation<-predict(model,validatePoly)
+    predTrain<-predict(model,trainPoly)
     
     list(validationMCE=MCE(predValidation,validatePoly$binary.quality),
          trainMCE=MCE(predTrain,trainPoly$binary.quality))
