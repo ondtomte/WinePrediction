@@ -2,7 +2,7 @@
 title: "Wine Prediction - Machine Learning Project"
 author: "Simon Almerström Przybyl & Daniel Öhman"
 date: "August 9th 2015"
-output: html_document
+output: pdf_document
 ---
 
 #1. INTRODUCTION
@@ -439,6 +439,8 @@ Since local regression with as many neighbors as there are observations by defin
 
 We continue with random forest models. A random forest model randomly chooses a number of features and thereafter uses bootstrap samples of the training data to construct a tree. By repeating this procedure, several trees are constructed and the prediction on a new data set is then done by averaging the prediction over the different trees (also note that each individual tree predicts by averaging the value of the training cases in the leaf which the new case belongs to).
 
+We constructed random forest models with 500 trees, the barplot below shows the result of the tuned models.
+
 ```{r,eval=TRUE,cache=TRUE, echo = FALSE}
 require(randomForest)
 randomForest.models <- lapply(dataSets, function(x){
@@ -463,7 +465,7 @@ mse.forestT<- sapply(randomForest.models,function(x){
 barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="topleft"))
 ```
 
-The barplot above shows the result of the tuned models. The normal data set with a validation MSE of `r round(randomForest.models$normal$validationMSE, 4)` (`r round(proc.base(randomForest.models$normal$validationMSE),1)`% lower than baseline) performs best, however the poly2 and poly3 data sets only performed slightly worse.
+The normal data set with a validation MSE of `r round(randomForest.models$normal$validationMSE, 4)` (`r round(proc.base(randomForest.models$normal$validationMSE),1)`% lower than baseline) performs best, however the poly2 and poly3 data sets only performed slightly worse.
 
 We continue by plotting how the validation and training MSE for the normal data set is affected by the number of trees (we have not tuned the models from which we have obtained the following results). The blue line represents the training MSE and the red represents validation (note that we do not tune the models in this case):
 
@@ -944,15 +946,19 @@ temp<-MCE(Predictions,test$quality>GOOD_WINE)
 The test MCE was `r round(temp,3)`, `r round(proc.base.class(temp),1)`% under baseline, meaning this model did not satisfy our goal of a 50% reduction in MCE. However, as the learning rate will show, the model will probably perform better if more data is gathered).
 
 ```{r,echo=FALSE,message=FALSE}
-barplot(c("Training" = predict(randomForest.c.models$poly2$model,newdata=dataSets$poly2$train,type="response"), "Validation" = predict(randomForest.c.models$poly2$model,newdata=dataSets$poly2$validation,type="response"), "Test" = temp), las = 2, ylab = "MSE", ylim = c(0,0.40))
+barplot(c("Training" = min(randomForest.c.models$poly2$trainMCE), "Validation" = min(randomForest.c.models$poly2$validationMCE), "Test" = temp), las = 2, ylab = "MSE", ylim = c(0,0.40))
 ```
 
 We construct a confusion matrix:
 
-`r table(Predictions,test$quality>GOOD_WINE)`
+```{r,echo=FALSE} 
+table(Predictions,test$quality>GOOD_WINE)
+```
 
 $Precision=\frac{567}{567+54}\approx 0.91$
+
 $Recall=\frac{567}{567+104}\approx 0.85$
+
 $Specificity=\frac{199}{199+104}\approx 0.66$
 
 Even though the model did not satisfy our goal, it is pleasant that the model has a high precision (this minimizes the risk of someone expecting to get a good wine but obtaining a poor wine).
