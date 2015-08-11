@@ -25,27 +25,27 @@ The quality of the wine was measured on a discrete scale from 0 to 10, though th
 hist(wine$quality,col="red",main="Wine Quality Distribution",xlab="Quality",breaks = 7)
 ```
 
-Our task is to investigate how different chemical levels affect the quality of the wine, and we split this task into two subtasks:
+Our task is to investigate how different chemical levels affect the quality of the wine, and we split this task into two sub tasks:
 
 1. We view the quality of wine as a continuous variable allowed to take any value on the closed interval 0 to 10, this view of the problem yields a regression problem.
 
 2. We define a good wine to be a wine having quality larger than or equal to 6. This yields a binary classification problem of separating good wine from poor wine.
 
-Regarding the accuracy of the different subtasks:
+Regarding the accuracy of the different sub tasks:
 
-In the regression subtask we are seeking to minimize the MSE (mean squared error) as far as possible. Moreover, we want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model will consist of simply guessing the mean quality of the training.
+In the regression sub task we are seeking to minimize the MSE (mean squared error) as far as possible. Moreover, we want our regression model to give a lower MSE than the MSE we obtain in our baseline model, this model will consist of simply guessing the mean quality of the training.
 
-How low we want to push down the MSE for us to be satisfied with our models is a difficult question and depends on how are models are supposed to be used. We believe a resonable purpose for our models is to act as a tool for beverage stores when they decide which wine they should keep in stock. However, it is still difficult to define how low the MSE should be for us to be content: When one is for example constructing a bridge, one will probably want the prediction of the target value to be precise enough so the probability of the bridge collapsing is negligent. In our case, our regression models can not really be said to have such a clear goal: We can basically only tell if one given model is better than another given model, not if they are good enough in an absolute sense.
+How low we want to push down the MSE for us to be satisfied with our models is a difficult question and depends on how are models are supposed to be used. We believe a reasonable purpose for our models is to act as a tool for beverage stores when they decide which wine they should keep in stock. However, it is still difficult to define how low the MSE should be for us to be content: When one is for example constructing a bridge, one will probably want the prediction of the target value to be precise enough so the probability of the bridge collapsing is negligent. In our case, our regression models can not really be said to have such a clear goal: We can basically only tell if one given model is better than another given model, not if they are good enough in an absolute sense.
 
-Given the discussion above, any quantitative measure of how much we want to reduce our test MSE is arbitrary. However, we pretend that the marketing department of the beverage store has demanded that the test MSE of a sufficient model should be 50% lower than the test MSE of our basline model, such a reduction in MSE would let the marketing department advertise our model as being "twice as good as chance".
+Given the discussion above, any quantitative measure of how much we want to reduce our test MSE is arbitrary. However, we pretend that the marketing department of the beverage store has demanded that the test MSE of a sufficient model should be 50% lower than the test MSE of our baseline model, such a reduction in MSE would let the marketing department advertise our model as being "twice as good as chance".
 
-In the classification subtask, we seek to maximize model accuarcy (minimze the MCE, misclassification error). The discussion that we held regarding our demands for the regression models applies directly to the classification models as well: It is difficult for us to specify how a classification model has to perform in order to be be considered sufficiently good, we will therefore pretend that we for purposes of marketing want a classification model to perform twice as good as our baseline classification model. In the classification case the baseline consists of guessing that a new observation belong to the same class as the majority of the obervations in the training data.
+In the classification sub task, we seek to maximize model accuracy (minimize the MCE, misclassification error). The discussion that we held regarding our demands for the regression models applies directly to the classification models as well: It is difficult for us to specify how a classification model has to perform in order to be be considered sufficiently good, we will therefore pretend that we for purposes of marketing want a classification model to perform twice as good as our baseline classification model. In the classification case the baseline consists of guessing that a new observation belong to the same class as the majority of the observations in the training data.
 
 #2. DATA CLEANING & OUTLIER DETECTION
 
 We downloaded the data set from the UCI Machine Learning Repository [link]( https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/). At the repository, data regarding both white and red wine was available in two separate files, however we chose to only use the data for the white wine since we believe that the quality of wine with different colours may be affected differently by varying chemical levels. Moreover, expert opinion varies when judging white wine compared to red wine.
 
-The data set did not contain any unknown values. Initially, we did not search for any outliers but after having constructed a few models, we noticed that our validation MSE was systematically lower than our training MSE. When this was noticed, we tried to resplit our data into training, validation and test sets a few times, however the pecularity of obtaining lower validation MSE than training MSE was present for most of the splits. The pecularity was especially pronounced for the simpler models. This lead us to believe that there were outliers present in our data: We believe that having outliers present in the training data will not affect the overall behavior of simpler models but will push up the training MSE highly for these models (since the prediction for the outliers will be far off).
+The data set did not contain any unknown values. Initially, we did not search for any outliers but after having constructed a few models, we noticed that our validation MSE was systematically lower than our training MSE. When this was noticed, we tried to resplit our data into training, validation and test sets a few times, however the peculiarity of obtaining lower validation MSE than training MSE was present for most of the splits. The peculiarity was especially pronounced for the simpler models. This lead us to believe that there were outliers present in our data: We believe that having outliers present in the training data will not affect the overall behavior of simpler models but will push up the training MSE highly for these models (since the prediction for the outliers will be far off).
 
 We searched for outliers (observations deviating extremely) by examining the Euclidean norm of the attributes of the observations:
 
@@ -134,7 +134,7 @@ names(sdev) <- c("PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","P
 sdev
 ```
 
-Intuitively PCA defines a set of new base vectors of our data (corresponding to a rotation), the idea is to keep the directions of high variance since these are assumed to be the most informative (at least given a linear relation between the attrbiutes and the target variable).
+Intuitively PCA defines a set of new base vectors of our data (corresponding to a rotation), the idea is to keep the directions of high variance since these are assumed to be the most informative (at least given a linear relation between the attributes and the target variable).
 
 Since the standard deviations decrease quite slowly without any sharp decline, except for the step from the 10th to the 11th principle component, there is not any natural cutoff point for how many principle components we should choose. We therefore choose to express our data using the first i principle components, for every i from 1 to 10, and create a new data frame pcai for each such transformation.
 
@@ -223,7 +223,7 @@ text(11.7,MSE(mean(train$quality), validation$quality)+0.05,"baseline = 0.776")
 proc.base <- function(x){100 * (baseline.MSE - x)/baseline.MSE}
 ```
 
-The models performed badly, the only model with descent performance was the alcohol model (note that alcohol occured frequently in the correlation scores) with a validation MSE of `r round(mse.lm.models[11], 3)` corresponding to a `r round(proc.base(mse.lm.models[11]), 1)`% improvement from baseline.
+The models performed badly, the only model with descent performance was the alcohol model (note that alcohol occurred frequently in the correlation scores) with a validation MSE of `r round(mse.lm.models[11], 3)` corresponding to a `r round(proc.base(mse.lm.models[11]), 1)`% improvement from baseline.
 
 We continue with more advanced linear models:
 
@@ -255,7 +255,9 @@ barplot(t(cbind(mse.linearV,mse.linearT,mse.linearCV)),main="Linear regression",
 
 Poly2 performs best with a validation MSE of `r round(mse.linearV[2], 3)` (`r round(proc.base(mse.linearV[2]), 1)`% improvement over baseline).
 
-The difference in validation MSE between the best models is quite small. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the acutal validation errors, as expected. Finally, the more PCA components we use the better the model gets, suggesting that all variables are important.
+The difference in validation MSE between the best models is quite small. Polynomial regression of degree 3 seems to overfit (since the difference between its training and validation MSE is high compared to the other models), yet still performs second best. It can also be noted that the CV errors (raw and adjusted) lie close to the actual validation errors, as expected. Moreover, the more PCA components we use the better the model gets, suggesting that all variables are important.
+
+The CV performed was 5-fold. We will not perform any more CV because we had problems implementing it and it is also quite computationally expensive.
 
 ## 6.3 LASSO REGRESSION
 
@@ -354,7 +356,7 @@ The $\lambda$ value for the best model was higher than expected given our result
 
 We perform a thin plate spline on the PCA1 to PCA9 data sets, we ignore the other data sets for the construction of this model since they give error messages regarding colinearity. The thin plate spline creates a smooth surface approximating the data points, technically this is done by projecting the data points to a higher dimensional space and then applying ridge regression. The $\lambda$ parameter of the ridge regression defines the smoothness of this surface and is chosen by the following function through cross-validation.
 
-```{r,cache=TRUE,eval=TRUE,warning=FALSE,message=FALSE, echo = FALSE,results="hide"}
+```{r,cache=TRUE,eval=TRUE,warning=FALSE,message=FALSE, echo = FALSE}
 require(fields)
 # avoiding colinearity
 remove <- c(1,2,3,4)
@@ -371,7 +373,9 @@ tps.train <-rev(sapply(tps.models, function(x){x$trainMSE}))
 barplot(rbind(tps.valid,tps.train), ylab = "Validation MSE", las = 2, ylim = c(0, 1), beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="bottomleft"))
 ```
 
-PCA7 gave the lowest thin plate spline validation MSE, `r round(tps.valid[7], 3)` (a `r round(proc.base(tps.valid[7]), 1)`% improvement over baseline). The PCA5, PCA7 and PCA9 models all have a very low training MSE, in the case of PCA9 this seems to cause overfitting while PCA7 performs suprisingly well, we do not have any explanation of this behavior.
+PCA7 gave the lowest thin plate spline validation MSE, `r round(tps.valid[7], 3)` (a `r round(proc.base(tps.valid[7]), 1)`% improvement over baseline). The PCA5, PCA7 and PCA9 models all have a very low training MSE, in the case of PCA9 this seems to cause overfitting while PCA7 performs surprisingly well, we do not have any explanation of this behavior.
+
+We note that the TPS package returns a warning message regarding the $\lambda$. We believe this warning message is produced because the $\lambda$ selected through cross-validation is very close to 0, if $\lambda$ would be 0 then any function interpolating the data would be acceptable and such a function is not unique.
 
 ## 6.5 LOCAL REGRESSION
 
@@ -456,12 +460,12 @@ mse.forestV<- sapply(randomForest.models,function(x){
 mse.forestT<- sapply(randomForest.models,function(x){
   x$trainMSE
 })
-barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest Regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="topleft"))
+barplot(t(cbind(mse.forestV,mse.forestT)),main="Random Forest regression", ylab="MSE",las=2,beside = TRUE,legend=c("Validation","Train"),args.legend = list(x="topleft"))
 ```
 
-The normal data set with a validation MSE of `r round(randomForest.models$normal$validationMSE, 4)` (`r round(proc.base(randomForest.models$normal$validationMSE),1)`% lower than baseline) performs best, however the poly2 and poly3 data sets only performed slightly worse.
+The barplot above shows the result of the tuned models. The normal data set with a validation MSE of `r round(randomForest.models$normal$validationMSE, 4)` (`r round(proc.base(randomForest.models$normal$validationMSE),1)`% lower than baseline) performs best, however the poly2 and poly3 data sets only performed slightly worse.
 
-We continue by plotting how the validation and training MSE for the normal data set is affected by the number of trees (we have not tuned the models from which we have obtained the following results). The blue line represents the training MSE and the red represents validation:
+We continue by plotting how the validation and training MSE for the normal data set is affected by the number of trees (we have not tuned the models from which we have obtained the following results). The blue line represents the training MSE and the red represents validation (note that we do not tune the models in this case):
 
 ```{r,eval=TRUE,cache=TRUE,echo=FALSE}
 x <- dataSets$normal
@@ -512,7 +516,7 @@ mse.ridgeV.new <- c(mse.ridgeV, NA)
 bar.matrix <- matrix(c(baseline.MSE.new, mse.linearV, mse.lassoV, mse.ridgeV.new, tps.valid.new, loc.reg.Vmse.new, mse.forestV, rep(NA, 13), rep(NA, 13)), ncol = 9)
 
 
-barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col)
+barplot(bar.matrix, beside = TRUE, ylim = c(0,0.8), names = c("Baseline","LM","Lasso","Ridge","TPS","Local reg.","RF", "", ""), las = 2, col = cust.col, ylab = "Validation MSE")
 legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.65)
 ```
 
@@ -525,7 +529,7 @@ To summarize our regression task, before we proceed with testing our chosen mode
 ```{r,eval=TRUE,cache=TRUE, echo = FALSE}
 best.V <- c("baseline" = baseline.MSE, "1 var. LM" = min(mse.lm.models), "LM" = min(mse.linearV), "lasso" = min(mse.lassoV), "ridge" = min(mse.ridgeV), "TPS" = min(tps.valid), "local reg." = min(loc.reg.Vmse), "RF" = min(mse.forestV))
 
-barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Validation MSE, Best Data Sets")
+barplot(best.V, las = 2, col = c(cust.col[1],cust.col[1],cust.col[2],cust.col[3],cust.col[3],cust.col[7],cust.col[1],cust.col[1]), ylim = c(0,0.8), main = "Best Data sets", ylab = "Validation MSE")
 legend("topright", names(dataSets)[c(1,2,3,7)], col= cust.col[c(1,2,3,7)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
@@ -546,16 +550,16 @@ predTest<-predict(final.rf.model, test[,-12])
 final.rf.model.list <- list(trainMSE=MSE(predTrain,train[,12]),validationMSE=MSE(predValidation,validation$quality), testMSE=MSE(predTest,test$quality))
 ```
 
-The obtained test MSE of `r round(final.rf.model.list$testMSE, 3)`  is `r round(proc.base(final.rf.model.list$testMSE), 1)`% lower than our baseline, satisifying our goal of a 50% MSE reduction. The training MSE (`r round(final.rf.model.list$trainMSE, 3)`) of our chosen model is very close to zero, suggesting a risk for overfitting, however the validation (`r round(proc.base(final.rf.model.list$validationMSE),3)`) and test MSEs are low and very close to each other, implying that the model seem to generalize well to unseen data, the following left plot show these MSEs:
+The obtained test MSE of `r round(final.rf.model.list$testMSE, 3)`  is `r round(proc.base(final.rf.model.list$testMSE), 1)`% lower than our baseline, satisfying our goal of a 50% MSE reduction. The training MSE (`r round(final.rf.model.list$trainMSE, 3)`) of our chosen model is very close to zero, suggesting a risk for overfitting, however the validation (`r round(proc.base(final.rf.model.list$validationMSE),3)`) and test MSEs are low and very close to each other, implying that the model seem to generalize well to unseen data, the following left plot show these MSEs:
 
 ```{r,eval=TRUE,cache=TRUE, echo = FALSE}
 par(mfrow=c(1,2))
 
-barplot(c("Training" = final.rf.model.list$trainMSE, "Validation" = final.rf.model.list$validationMSE, "Test" = final.rf.model.list$testMSE), las = 2, ylab = "MSE", main = "RF, 210 trees", ylim = c(0,0.40))
+barplot(c("Training" = final.rf.model.list$trainMSE, "Validation" = final.rf.model.list$validationMSE, "Test" = final.rf.model.list$testMSE), las = 2, ylab = "MSE", ylim = c(0,0.40))
 
 mean.matrix <- matrix(c(mean(predTrain), mean(train$quality), mean(predValidation), mean(validation$quality), mean(predTest), mean(test$quality)), ncol = 3)
 
-barplot(mean.matrix, las = 2, ylab = "Mean Quality", beside = TRUE, ylim = c(0,8), names = c("Training","Validation","Test"), col = c(2,3), main = "RF Performance")
+barplot(mean.matrix, las = 2, ylab = "Mean Quality", beside = TRUE, ylim = c(0,8), names = c("Training","Validation","Test"), col = c(2,3))
 legend("topright", c("Actual", "Predicted"), col= c(2,3), lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
@@ -563,7 +567,7 @@ The right plot shows how the predicted mean values of the model compares to the 
 
 ## 7.3 LEARNING RATE
 
-After finding a good model we wanted to answer if more data would create an even better model. To do this we calculate and plot a diagram with MSE as a function of the number of observations in the training data. As you can see the validation MSE is still shrinking fast:
+After finding a good model we wanted to answer if more data would create an even better model. To do this we calculate and plot a diagram with MSE as a function of the number of observations in the training data. As you can see the validation MSE is still shrinking fast (note that we do not tune the models):
 
 ```{r,eval=TRUE, echo=FALSE,message=FALSE, echo = FALSE}
 require(randomForest)
@@ -575,10 +579,10 @@ l<-lapply(toTest,function(x){
     train<-trainValidate[s==TRUE,]
     validate<-trainValidate[s==FALSE,]
     model<-randomForest(quality ~ ., data=train, ntree = 50)
-    tuned.model <- randomForest(quality ~ ., data=train, ntree =
-                                which.min(model$mse))
-    predValidation<-predict(tuned.model,validate)
-    predTrain<-predict(tuned.model,train)
+#    tuned.model <- randomForest(quality ~ ., data=train, ntree =
+#                                which.min(model$mse))
+    predValidation<-predict(model,validate)
+    predTrain<-predict(model,train)
     
     list(validationMSE=MSE(predValidation,validate$quality),
          trainMSE=MSE(predTrain,train$quality))
@@ -592,7 +596,7 @@ t<- sapply(l,function(x){
 v<- sapply(l,function(x){
   x$validationMSE
 })
-plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.6),ylab="MSE",xlab="Number of Observations in Training",main="Learning Rate Random Forest")
+plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.6),ylab="MSE",xlab="Number of observations in training",main="Learning Rate Random Forest")
 lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
@@ -627,7 +631,7 @@ baseline.misclass <- MCE(TRUE, validation$binary.quality)
 proc.base.class <- function(x){100 * (baseline.misclass - x)/baseline.misclass}
 ```
 
-This baseline consists of guessing that a new observation belong to the same class as the majority of the obervations in the training data, this model gave a MSE of `r round(baseline.misclass, 3)`.
+This baseline consists of guessing that a new observation belong to the same class as the majority of the observations in the training data, this model gave a MSE of `r round(baseline.misclass, 3)`.
 
 Classes of observations in training data: `r table(train$quality> GOOD_WINE)`.
 
@@ -711,7 +715,7 @@ The LDA model calculates the mean of the attributes for a given class, and then 
 
 The QDA model works similarly but in this case the variance is not set to 1 but instead to the variance of the attributes of the each individual class. 
 
-```{r,eval=TRUE,cache=TRUE,echo=FALSE}
+```{r,eval=TRUE,cache=TRUE,echo=FALSE, message = FALSE}
 require(MASS)
 
 # remove poly2 and poly3?
@@ -727,14 +731,16 @@ lda.qda.models <- lapply(dataSets, function(x){
   validation[,12]),lda.validation.MCE=MCE(predict(wine.lda, x$validation)$class, 
   validation[,12]))
 })
-
-# barplot
-# $posterior + ROCR...
-```
-```{r}
 ```
 
-RESULTS
+```{r,eval=TRUE,cache=TRUE,echo=FALSE, message = FALSE}
+lda.qda.matrix <- sapply(lda.qda.models, function(x){c(x$lda.validation.MCE, x$qda.validation.MCE)})
+
+barplot(lda.qda.matrix, beside = TRUE, ylim = c(0,0.35), names = names(dataSets), las = 2, col = c(3,4), ylab = "Validation MCE")
+legend("topleft", c("LDA", "QDA"), col= c(3,4), lty=1, lwd = 5, cex = 0.60)
+```
+
+The models for poly3 performed best, its LDA model had a validation MCE of `r round(lda.qda.models$poly3$lda.validation.MCE, 3)` (`r round(proc.base.class(lda.qda.models$poly3$lda.validation.MCE),1)`% under baseline) and its QDA model had a MCE of `r round(lda.qda.models$poly3$lda.validation.MCE,3)` (`r round(proc.base.class(lda.qda.models$poly3$qda.validation.MCE),1)`% under baseline).
 
 ## 8.5 SUPPORT VECTOR MACHINES
 
@@ -782,7 +788,7 @@ The radial kernel was the best kernel. The best SVM model gave a validation MSE 
 
 ## 8.5 RANDOM FOREST FOR CLASSIFICATION
 
-We construct a set of random forest models:
+We construct a set of random forest models (note that we do not tune the models):
 
 ```{r,eval=TRUE, cache=TRUE,warning=FALSE,echo=FALSE}
 set.seed(56)
@@ -794,13 +800,13 @@ randomForest.c.models <- lapply(dataSets, function(x){
   models<-list()
   for(y in trees){
     model<-randomForest(binary.quality ~ ., x$train, ntree = y)
-    tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
-                                  which.min(model$err.rate[,1]))
-    predV<-predict(tuned.model,x$validation)
-    predT<-predict(tuned.model,x$train)
+#    tuned.model <- randomForest(binary.quality ~ ., x$train, ntree =
+#                                  which.min(model$err.rate[,1]))
+    predV<-predict(model,x$validation)
+    predT<-predict(model,x$train)
     validationMCE<-c(validationMCE,MCE(predV,validation$binary.quality))
     trainMCE<-c(trainMCE,MCE(predT,x$train$binary.quality))
-    models<-c(models,list(tuned.model))
+    models<-c(models,list(model))
   }
   
   n<-which.min(validationMCE)
@@ -818,6 +824,8 @@ generic.plot(trees, c(0,240), c(.12,.32), "Number of trees", randomForest.c.mce)
 Poly2 with 100 trees gave the best result with a validation MSE of `r round(randomForest.c.mce$poly2[5], 3)` (`r round(proc.base.class(randomForest.c.mce$poly2[5]), 2)`% lower than baseline).
 
 ## 8.6 ADA MODELS
+
+We construct a set of ADA models, our understanding of ADA is lacking but the model partly relies on repeating some training procedure and giving misclassified cases in the i’th iteration higher priority in the i+1’th iteration. Note that we do not tune the models.
 
 ```{r,eval=TRUE,cache=TRUE,warning=FALSE,message=FALSE,echo=FALSE}
 set.seed(56)
@@ -847,6 +855,8 @@ generic.plot(iterations, c(1,43), c(.16,.33), "Number of iterations", ada.models
 Poly3 with 30 iterations gave the best result with a validation MSE of `r round(ada.models$poly3[[6]], 3)` (`r round(proc.base.class(ada.models$poly3[[6]]), 1)`% lower than baseline).
 
 ## 8.7 LOGISTIC REGRESSION
+
+We construct a set of logistic regression models, these models fit a multivariate sigmoid function to our data points and return the probability of an observation to be true. We vary the cutoff value (how high the probability has to be for an observation to be classified as true) and plot the results:
 
 ```{r,eval=TRUE,echo=FALSE,cache=TRUE, warning=FALSE, message=FALSE}
 require(ROCR)
@@ -918,7 +928,7 @@ To summarize our classification task, before we proceed with testing our chosen 
 ```{r,echo=FALSE,eval=TRUE, echo = FALSE}
 best.class.V <- c("baseline" = baseline.misclass, "KNN" = min(knn.models$poly3), "LDA" = lda.qda.models$poly3$lda.validation.MCE, "QDA" = lda.qda.models$poly3$qda.validation.MCE, "SVM" =  df$validationError[[13]], "RF" = randomForest.c.models$poly3$validationMCE[5], "ADA" = ada.models$poly3$`30`, "Log. reg." = min(1 - performance(x[[2]], "acc")@y.values[[1]]))
 
-barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.col[3],cust.col[1],cust.col[3],cust.col[3],cust.col[2]), ylim = c(0,0.4), main = "Validation MCE, Best Data Sets")
+barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.col[3],cust.col[1],cust.col[3],cust.col[3],cust.col[2]), ylim = c(0,0.4), main = "Best Data sets", ylab = "Validation MCE")
 legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
@@ -934,6 +944,8 @@ Result on test set:`r round(temp,3)`
 
 
 ## 7.3 LEARNING RATE
+
+(note that we do not tune the models)
 
 ```{r,eval=TRUE, echo=FALSE,message=FALSE,cache=TRUE}
 require(randomForest)
@@ -968,7 +980,7 @@ t<- sapply(l,function(x){
 v<- sapply(l,function(x){
   x$validationMCE
 })
-plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.4),ylab="MCE",xlab="n",main="Learning Rate Random Forest")
+plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.4),ylab="MCE",xlab="Number of observations in training",main="Learning Rate Random Forest")
 lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
