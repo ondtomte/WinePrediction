@@ -823,7 +823,7 @@ randomForest.c.mce<-lapply(randomForest.c.models,function(x){
 generic.plot(trees, c(0,750), c(.12,.32), "Number of trees", randomForest.c.mce)
 ```
 
-Poly2 with 100 trees gave the best result with a validation MSE of `r round(randomForest.c.mce$poly2[5], 3)` (`r round(proc.base.class(randomForest.c.mce$poly2[5]), 2)`% lower than baseline).
+Poly2 with 200 trees gave the best result with a validation MSE of `r round(randomForest.c.mce$poly2[6], 3)` (`r round(proc.base.class(randomForest.c.mce$poly2[6]), 2)`% lower than baseline).
 
 ## 8.6 ADA MODELS
 
@@ -923,14 +923,14 @@ barplot(bar.matrix, beside = TRUE, ylim = c(0,0.4), names = c("Baseline","KNN","
 legend("topright", names(dataSets), col= cust.col, lty=1, lwd = 5, cex = 0.60)
 ```
 
-The random forest model with 100 trees for the feature set Poly2 gave the lowest validation MSE.
+The random forest model with 200 trees for the feature set Poly2 gave the lowest validation MSE.
 
 To summarize our classification task, before we proceed with testing our chosen model, we now also plot how the best feature set for each model perform compare to each other:
 
 ```{r,echo=FALSE,eval=TRUE, echo = FALSE}
-best.class.V <- c("baseline" = baseline.misclass, "KNN" = min(knn.models$poly3), "LDA" = lda.qda.models$poly3$lda.validation.MCE, "QDA" = lda.qda.models$poly3$qda.validation.MCE, "SVM" =  df$validationError[[13]], "RF" = randomForest.c.models$poly3$validationMCE[5], "ADA" = ada.models$poly3$`30`, "Log. reg." = min(1 - performance(x[[2]], "acc")@y.values[[1]]))
+best.class.V <- c("baseline" = baseline.misclass, "KNN" = min(knn.models$poly3), "LDA" = lda.qda.models$poly3$lda.validation.MCE, "QDA" = lda.qda.models$poly3$qda.validation.MCE, "SVM" =  df$validationError[[13]], "RF" = randomForest.c.models$poly2$validationMCE[6], "ADA" = ada.models$poly3$`30`, "Log. reg." = min(1 - performance(x[[2]], "acc")@y.values[[1]]))
 
-barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.col[3],cust.col[1],cust.col[3],cust.col[3],cust.col[2]), ylim = c(0,0.4), main = "Best Data sets", ylab = "Validation MCE")
+barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.col[3],cust.col[1],cust.col[2],cust.col[3],cust.col[2]), ylim = c(0,0.4), main = "Best Data sets", ylab = "Validation MCE")
 legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
@@ -946,7 +946,7 @@ temp<-MCE(Predictions,test$quality>GOOD_WINE)
 The test MCE was `r round(temp,3)`, `r round(proc.base.class(temp),1)`% under baseline, meaning this model did not satisfy our goal of a 50% reduction in MCE. However, as the learning rate will show, the model will probably perform better if more data is gathered).
 
 ```{r,echo=FALSE,message=FALSE}
-barplot(c("Training" = min(randomForest.c.models$poly2$trainMCE), "Validation" = min(randomForest.c.models$poly2$validationMCE), "Test" = temp), las = 2, ylab = "MSE", ylim = c(0,0.40))
+barplot(c("Training" = randomForest.c.models$poly2$trainMCE[6], "Validation" = min(randomForest.c.models$poly2$validationMCE), "Test" = temp), las = 2, ylab = "MSE", ylim = c(0,0.40))
 ```
 
 We construct a confusion matrix:
@@ -982,7 +982,7 @@ l<-lapply(toTest,function(x){
     names(trainPoly)<-names(dataSets$poly2$train)
     names(validatePoly)<-names(dataSets$poly2$validation)
     validatePoly$binary.quality<-as.factor(validate$quality>GOOD_WINE)
-    model<-randomForest(binary.quality ~ ., data=trainPoly, ntree = 50)
+    model<-randomForest(binary.quality ~ ., data=trainPoly, ntree = 200)
     #tuned.model <- randomForest(binary.quality ~ ., data=trainPoly, ntree =
      #                           which.min(model$err.rate[,1]))
     predValidation<-predict(model,validatePoly)
@@ -1005,7 +1005,7 @@ lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
 
-The plot is decreasing, suggesting that more data will improve the model.
+The plot is decreasing (although there seems to be a hopefully random increase at the very end), suggesting that more data will improve the model.
 
 # 10. SUMMARY OF THE PROJECT
 
