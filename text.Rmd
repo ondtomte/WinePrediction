@@ -883,9 +883,9 @@ require(ROCR)
 ```
 Poly2 with a cutoff of `r round(performance(x[[2]], "acc")@x.values[[1]][which.min(1 - performance(logistic.reg[[2]], "acc")@y.values[[1]])], 3)`  gave the best result with a validation MSE of `r round(min(1 - performance(logistic.reg[[2]], "acc")@y.values[[1]]), 3)` (`r round(proc.base.class(min(1 - performance(logistic.reg[[2]], "acc")@y.values[[1]])), 1)`% lower than baseline).
 
-# 7. RESULTS CLASSIFICATION
+# 9. RESULTS CLASSIFICATION
 
-## 7.1 SUMMARY OF RESULTS
+## 9.1 SUMMARY OF RESULTS
 
 We compare the different classification models against each other:
 
@@ -932,7 +932,7 @@ barplot(best.class.V, las = 2, col = c(cust.col[1],cust.col[3],cust.col[3],cust.
 legend("topright", names(dataSets)[c(1,2,3)], col= cust.col[c(1,2,3)], lty=1, lwd = 5, cex = 0.65, horiz = TRUE)
 ```
 
-## 7.2 MODEL PERFORMANCE
+## 9.2 MODEL PERFORMANCE
 ```{r,echo=FALSE,message=FALSE}
 require(randomForest)
 testPoly<- as.data.frame(with(test[-12],polym(fixed.acidity,volatile.acidity,citric.acid,residual.sugar,chlorides,free.sulfur.dioxide,total.sulfur.dioxide,density,pH,sulphates,alcohol,degree = 2,raw=TRUE)))
@@ -940,14 +940,26 @@ names(testPoly)<-names(dataSets$poly2$train[-ncol(dataSets$poly2$train)])
 Predictions<-predict(randomForest.c.models$poly2$model,newdata=testPoly,type="response")
 temp<-MCE(Predictions,test$quality>GOOD_WINE)
 ```
-Result on test set:`r round(temp,3)`
-Confussion table `r table(Predictions,test$quality>GOOD_WINE)`.
-$Precisson=\frac{567}{567+54}\approx 0.91$
+
+The test MCE was `r round(temp,3)`, `r round(proc.base.class(temp),1)`% under baseline, meaning this model did not satisfy our goal of a 50% reduction in MCE. However, as the learning rate will show, the model will probably perform better if more data is gathered).
+
+```{r,echo=FALSE,message=FALSE}
+barplot(c("Training" = predict(randomForest.c.models$poly2$model,newdata=dataSets$poly2$train,type="response"), "Validation" = predict(randomForest.c.models$poly2$model,newdata=dataSets$poly2$validation,type="response"), "Test" = temp), las = 2, ylab = "MSE", ylim = c(0,0.40))
+```
+
+We construct a confusion matrix:
+
+`r table(Predictions,test$quality>GOOD_WINE)`
+
+$Precision=\frac{567}{567+54}\approx 0.91$
 $Recall=\frac{567}{567+104}\approx 0.85$
 $Specificity=\frac{199}{199+104}\approx 0.66$
-## 7.3 LEARNING RATE
 
-(note that we do not tune the models)
+Even though the model did not satisfy our goal, it is pleasant that the model has a high precision (this minimizes the risk of someone expecting to get a good wine but obtaining a poor wine).
+
+## 9.3 LEARNING RATE
+
+We plot the learning rate of the chosen model (note that we do not tune the individual models):
 
 ```{r,eval=TRUE, echo=FALSE,message=FALSE,cache=TRUE}
 require(randomForest)
@@ -986,3 +998,9 @@ plot(y=t,x = toTest*nrow(trainValidate),type="l",col="red",ylim=c(0,0.4),ylab="M
 lines(y=v,x=toTest*nrow(trainValidate),col="blue")
 legend("top",legend = c("Train","Validation"),col=c("red","blue"),lwd = 1)
 ```
+
+The plot is decreasing, suggesting that more data will improve the model.
+
+# 10. SUMMARY OF THE PROJECT
+
+In both the regression and classification sub tasks, the random forest models performed best: They gave lowest MSE and MCE while not being too computationally expensive. Generally, the normal, poly2 and poly3 feature sets gave the best results.
