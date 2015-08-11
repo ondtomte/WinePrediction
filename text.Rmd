@@ -2,7 +2,7 @@
 title: "Wine Prediction - Machine Learning Project"
 author: "Simon Almerström Przybyl & Daniel Öhman"
 date: "August 9th 2015"
-output: pdf_document
+output: html_document
 ---
 
 #1. INTRODUCTION
@@ -426,7 +426,7 @@ loc.reg.mse<-lapply(loc.reg.models,function(x){
 loc.reg.Vmse <- sapply(loc.reg.mse, function(x){min(x)})
 ```
 
-```{r,eval=FALSE,cache=TRUE,warning=FALSE, echo = FALSE}
+```{r,eval=TRUE,cache=TRUE,warning=FALSE, echo = FALSE}
 generic.plot(neighbors, c(30, 680), c(0.45,0.75), "Number of neighbors", loc.reg.mse)
 abline(h = mse.linearV[1], lty = 2)
 ```
